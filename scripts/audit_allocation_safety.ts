@@ -2,6 +2,7 @@
 import { prisma } from "../lib/prisma";
 import { SeatAllocationService } from "../services/seatAllocation.service";
 import { StudentStatus } from "../app/generated/prisma/enums";
+import { createAuditWorkspace } from "./create-audit-workspace";
 
 function errorMessage(error: unknown) {
     return error instanceof Error ? error.message : String(error);
@@ -11,15 +12,7 @@ async function main() {
     console.log("🔍 STARTING ALLOCATION SAFETY AUDIT...");
 
     // SETUP
-    const user = await prisma.user.create({
-        data: { email: `audit-seat-${Date.now()}@test.com`, name: "Audit User" }
-    });
-    const org = await prisma.organization.create({
-        data: { name: "Audit Org", ownerId: user.id }
-    });
-    const branch = await prisma.branch.create({
-        data: { name: "Audit Branch", organizationId: org.id }
-    });
+    const { user, branch } = await createAuditWorkspace("allocation");
 
     // Create Metadata
     const seat1 = await prisma.seat.create({ data: { branchId: branch.id, label: "S1" } });

@@ -1,14 +1,11 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { BillingService } from "@/services/billing.service";
-import { BillingMutationService } from "@/services/billingMutation.service";
+import { BillingDeadlineService } from "@/services/billingDeadline.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
 import { EntitlementService } from "@/services/entitlement.service";
 import { BranchService } from "@/services/branch.service";
-import {
-  BillingChangeInProgressError,
-  BillingManualReviewRequiredError,
-} from "@/lib/billingErrors";
+import { BillingManualReviewRequiredError } from "@/lib/billingErrors";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
 import {
   hmacSha256Hex,
@@ -255,7 +252,7 @@ describe("BillingService SaaS subscriptions", () => {
     setRazorpayClientForTests(fakeRazorpay);
     const owner = await createUser();
     const stranger = await createUser();
-    const org = await createOrg({ ownerId: owner.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: owner.id });
     const missingOrganizationId = "org_missing";
 
     const attempts = await Promise.all([
@@ -287,7 +284,29 @@ describe("BillingService SaaS subscriptions", () => {
     expect(fakeRazorpay.fetchSubscription).not.toHaveBeenCalled();
   });
 
-  it("bills Basic, Standard and Pro branches independently and contains a failed renewal", async () => {
+  it.each(["LEGACY", "WORKSPACE_V2"] as const)("requires an agreement on every owner billing command for retained %s organizations", async model => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    // This deliberately bypasses the opt-in factory for historical regressions.
+    const organization = await testPrisma.organization.create({ data: { ownerId: owner.id, name: "Retained workspace", billingModelVersion: model } });
+    const attempts = [
+      BillingService.listPlansForOrganization(owner.id, organization.id),
+      BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan: "BASIC" }),
+      BillingService.changeWorkspacePlan(owner.id, organization.id, "PRO", "plan"),
+      BillingService.requestCancellation(owner.id, organization.id),
+      BillingService.undoWorkspaceChange(owner.id, organization.id, "change"),
+      BillingService.retryBillingOperation(owner.id, organization.id, "change"),
+      BillingService.getRecoveryCheckout(owner.id, organization.id),
+      BillingService.createPaymentMethodReplacement(owner.id, organization.id, "replace"),
+    ];
+    await Promise.all(attempts.map(attempt => expect(attempt).rejects.toThrow("Select a branch")));
+    expect(await testPrisma.organizationBillingChange.count({ where: { organizationId: organization.id } })).toBe(0);
+    expect(provider.fetchSubscription).not.toHaveBeenCalled();
+    expect(provider.createSubscription).not.toHaveBeenCalled();
+  });
+
+  it.each(["halted", "paused"] as const)("bills Basic, Standard and Pro branches independently and recovers a %s renewal on its own mandate", async status => {
     const owner = await createUser();
     const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
     const provider = createFakeRazorpayClient();
@@ -296,11 +315,35 @@ describe("BillingService SaaS subscriptions", () => {
     const cases = [
       { plan: "BASIC", amount: 9900 }, { plan: "STANDARD", amount: 29900 }, { plan: "PRO", amount: 49900 },
     ] as const;
+    const period = 30 * 86400;
+    async function confirmCharge(
+      subscription: Awaited<ReturnType<typeof provider.createSubscription>>,
+      amount: number, paymentId: string, invoiceId: string, paidCount: number, periodStart: number, branchId: string,
+      beforeWebhook?: () => Promise<void>,
+    ) {
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...subscription, status: "active", payment_method: "card",
+        current_start: periodStart, current_end: periodStart + period, paid_count: paidCount });
+      vi.mocked(provider.fetchPayment).mockResolvedValue({ entity: "payment", id: paymentId, captured: true,
+        status: "captured", amount, currency: "INR", invoice_id: invoiceId, subscription_id: subscription.id, method: "card", order_id: null });
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [{
+        entity: "invoice", id: invoiceId, status: "paid", currency: "INR", amount, amount_paid: amount, amount_due: 0,
+        payment_id: paymentId, subscription_id: subscription.id, billing_start: periodStart, billing_end: periodStart + period,
+        paid_at: Math.floor(Date.now() / 1000),
+      }] });
+      const raw = JSON.stringify({ event: "subscription.charged", payload: {
+        subscription: { entity: { id: subscription.id } }, payment: { entity: { id: paymentId, subscription_id: subscription.id } },
+      } });
+      const signature = hmacSha256Hex(raw, "webhook_secret");
+      const receipt = () => BillingService.handleRazorpayWebhook(raw, signature, `evt_${invoiceId}`);
+      await beforeWebhook?.();
+      expect(await receipt()).toMatchObject({ ok: true, agreementBranchId: branchId });
+      expect(await receipt()).toMatchObject({ duplicate: true, agreementBranchId: branchId });
+    }
     const branches: string[] = [];
     for (const { plan, amount } of cases) {
-      const branch = await createBranch({ organizationId: org.id, billingStatus: "PENDING_ACTIVATION" });
+      const branch = await createBranch({ organizationId: org.id, billingStatus: "PENDING_ACTIVATION", selectedPlan: plan });
       branches.push(branch.id);
-      await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: org.id, selectedPlan: plan } });
+
       const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, org.id, branch.id, work);
       const start = () => BillingService.createSubscriptionCheckout(owner.id, org.id, { plan });
       const checkout = await run(start);
@@ -309,43 +352,267 @@ describe("BillingService SaaS subscriptions", () => {
       expect((await run(start)).changeId).toBe(checkout.changeId);
       expect((await EntitlementService.getBranchProfile(branch.id)).canWrite).toBe(false);
       const created = await vi.mocked(provider.createSubscription).mock.results.at(-1)!.value;
-      const paymentId = `pay_${plan.toLowerCase()}`, invoiceId = `inv_${plan.toLowerCase()}`;
-      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...created, status: "active", payment_method: "card",
-        current_start: now, current_end: now + 30 * 86400, paid_count: 1 });
-      vi.mocked(provider.fetchPayment).mockResolvedValue({ entity: "payment", id: paymentId, captured: true,
-        status: "captured", amount, currency: "INR", invoice_id: invoiceId, subscription_id: created.id, method: "card", order_id: null });
-      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [{
-        entity: "invoice", id: invoiceId, status: "paid", currency: "INR", amount, amount_paid: amount, amount_due: 0,
-        payment_id: paymentId, subscription_id: created.id, billing_start: now, billing_end: now + 30 * 86400, paid_at: Math.floor(Date.now()/1000),
-      }] });
-      const raw = JSON.stringify({ event: "subscription.charged", payload: {
-        subscription: { entity: { id: created.id } }, payment: { entity: { id: paymentId, subscription_id: created.id } },
-      } });
-      const signature = hmacSha256Hex(raw, "webhook_secret");
-      const receipt = () => BillingService.handleRazorpayWebhook(raw, signature, `evt_mixed_${plan}`);
-      expect(await receipt()).toMatchObject({ ok: true, agreementBranchId: branch.id });
-      expect(await receipt()).toMatchObject({ duplicate: true, agreementBranchId: branch.id });
+      await confirmCharge(created, amount, `pay_${plan}`, `inv_${plan}`, 1, now, branch.id);
       expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ effectivePlan: plan, canWrite: true });
     }
     expect(provider.createSubscription).toHaveBeenCalledTimes(3);
     const pro = await vi.mocked(provider.createSubscription).mock.results[2].value;
-    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...pro, status: "halted" });
+    const priorInvoice = (await provider.fetchSubscriptionInvoices(pro.id)).items[0];
+    const priorPayment = await provider.fetchPayment(priorInvoice.payment_id!);
+    const priorSubscription = await provider.fetchSubscription(pro.id);
+    const oldCharge = JSON.stringify({ event: "subscription.charged", payload: {
+      subscription: { entity: { id: pro.id } }, payment: { entity: { id: priorPayment.id, subscription_id: pro.id } },
+    } });
+    const replayPriorCharge = (id: string) => BillingService.handleRazorpayWebhook(oldCharge, hmacSha256Hex(oldCharge, "webhook_secret"), id);
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...pro, status });
     vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 0, items: [] });
     await withOwnerBillingScope(owner.id, org.id, branches[2], () =>
       BillingReconciliationService.reconcileProviderSubscription(pro.id));
-    expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ canWrite: false });
+    expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ canWrite: status === "paused" });
     expect(await EntitlementService.getBranchProfile(branches[0])).toMatchObject({ effectivePlan: "BASIC", canWrite: true });
     expect(await EntitlementService.getBranchProfile(branches[1])).toMatchObject({ effectivePlan: "STANDARD", canWrite: true });
     await expect(withOwnerBillingScope(owner.id, org.id, branches[0], () =>
       BillingReconciliationService.reconcileProviderSubscription(pro.id))).rejects.toThrow("Subscription not found");
     await expect(BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" })).rejects.toThrow("Select a branch");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date((now + period + 30) * 1000));
+      const recover = () => withOwnerBillingScope(owner.id, org.id, branches[2], () =>
+        BillingService.getRecoveryCheckout(owner.id, org.id, undefined, "recover-pro"));
+      const recovery = await recover();
+      expect(recovery).toMatchObject({ subscriptionId: pro.id, subscription_card_change: true });
+      if (!("changeId" in recovery)) throw new Error("Expected the original mandate's recovery Checkout");
+      expect(await recover()).toMatchObject({ changeId: recovery.changeId });
+      expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ canWrite: false });
+      vi.mocked(provider.fetchSubscription).mockResolvedValue(priorSubscription);
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [priorInvoice] });
+      vi.mocked(provider.fetchPayment).mockResolvedValue(priorPayment);
+      await replayPriorCharge("evt_previous_while_recovering");
+      expect(await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: recovery.changeId } }))
+        .toMatchObject({ status: "AWAITING_PAYMENT", resolvedAt: null, failureCategory: null });
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...pro, status: "authenticated", payment_method: "card" });
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 0, items: [] });
+      vi.mocked(provider.fetchPayment).mockResolvedValue({ entity: "payment", id: "pay_pro_method", captured: false,
+        status: "authorized", amount: 500, currency: "INR", subscription_id: pro.id, method: "card", order_id: null });
+      const authorization = JSON.stringify({ event: "subscription.authenticated", payload: {
+        subscription: { entity: { id: pro.id } }, payment: { entity: { id: "pay_pro_method", subscription_id: pro.id } },
+      } });
+      await BillingService.handleRazorpayWebhook(authorization, hmacSha256Hex(authorization, "webhook_secret"), "evt_pro_method");
+      expect(await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: recovery.changeId } }))
+        .toMatchObject({ status: "AWAITING_PAYMENT", operationStatus: "AWAITING_PROVIDER_CONFIRMATION", resolvedAt: null });
+      expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ canWrite: false });
+      vi.setSystemTime(new Date(Date.now() + 16 * 60_000));
+      await confirmCharge(pro, 49900, "pay_pro_renewed", "inv_pro_renewed", 2, now + period, branches[2], async () => {
+        const result = await withOwnerBillingScope(owner.id, org.id, branches[2], async () =>
+          status === "halted"
+            ? BillingService.retryBillingOperation(owner.id, org.id, recovery.changeId)
+            : BillingService.reconcileMutation(owner.id, org.id, recovery.changeId));
+        expect(result).toMatchObject({ operation: { id: recovery.changeId, operationStatus: "APPLIED" } });
+        expect(result).not.toHaveProperty("subscriptionId");
+        expect(result).not.toHaveProperty("checkout");
+      });
+      const renewedInvoice = (await provider.fetchSubscriptionInvoices(pro.id)).items[0];
+      const renewedPayment = await provider.fetchPayment(renewedInvoice.payment_id!);
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 2, items: [renewedInvoice, priorInvoice] });
+      vi.mocked(provider.fetchPayment).mockImplementation(async id => id === priorPayment.id ? priorPayment : renewedPayment);
+      await replayPriorCharge("evt_previous_after_new_period");
+      // A delayed negative receipt must resolve the latest provider state.
+      const late = JSON.stringify({ event: "subscription.halted", payload: { subscription: { entity: { id: pro.id } } } });
+      await BillingService.handleRazorpayWebhook(late, hmacSha256Hex(late, "webhook_secret"), "evt_late_halted_pro");
+      expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ effectivePlan: "PRO", canWrite: true });
+      expect(await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: recovery.changeId } }))
+        .toMatchObject({ status: "APPLIED", agreementBranchId: branches[2], providerPaymentId: "pay_pro_renewed" });
+      expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { razorpaySubscriptionId: pro.id } }))
+        .toMatchObject({ currentAgreementBranchId: branches[2], quantity: 1, paidThrough: new Date((now + period * 2) * 1000) });
+      for (let i = 0; i < branches.length; i++) {
+        expect(await testPrisma.organizationSubscriptionInvoice.count({ where: { agreementBranchId: branches[i] } })).toBe(i === 2 ? 2 : 1);
+      }
+      expect(provider.createSubscription).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe("overdue independent branch payment recovery", () => {
+    const originalUrl = "https://rzp.io/i/first-recovery";
+    const freshUrl = "https://rzp.io/i/resumed-recovery";
+
+    afterEach(() => vi.useRealTimers());
+
+    async function startRecovery(status: "HALTED" | "PENDING" | "PAUSED", method: "CARD" | "UPI") {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      const owner = await createUser();
+      const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+      const branch = await createBranch({ organizationId: org.id });
+      const sibling = await createBranch({ organizationId: org.id, selectedPlan: "PRO" });
+      const subscription = await createSaasSubscription({
+        organizationId: org.id, agreementBranchId: branch.id, plan: "BASIC", status,
+      });
+      await testPrisma.organizationSubscription.update({
+        where: { id: subscription.id }, data: { providerPaymentMethod: method },
+      });
+      const paidSibling = await createSaasSubscription({
+        organizationId: org.id, agreementBranchId: sibling.id, plan: "PRO",
+      });
+      await testPrisma.organizationSubscription.update({
+        where: { id: paidSibling.id }, data: { lastReconciledAt: new Date() },
+      });
+      const provider = createFakeRazorpayClient();
+      setRazorpayClientForTests(provider);
+      const gateway = {
+        entity: "subscription" as const, id: subscription.razorpaySubscriptionId, plan_id: subscription.razorpayPlanId,
+        status: status.toLowerCase(), quantity: 1, total_count: 120, paid_count: 0,
+        payment_method: method.toLowerCase(), short_url: originalUrl,
+        notes: { branch_agreement_id: branch.id },
+      };
+      vi.mocked(provider.fetchSubscription).mockResolvedValue(gateway);
+      const scope = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, org.id, branch.id, work);
+      const checkout = await scope(() => BillingService.getRecoveryCheckout(owner.id, org.id, undefined, "recover"));
+      expect(checkout).toMatchObject({ subscriptionId: gateway.id, hostedRecoveryUrl: originalUrl });
+      if (!("changeId" in checkout)) throw new Error("Expected hosted recovery on the original mandate");
+
+      // No close event or provider callback. Both the processing page and the deadline worker see an overdue receipt.
+      vi.setSystemTime(new Date(Date.now() + 16 * 60_000));
+      const operation = () => scope(() => BillingService.getBillingOperation(owner.id, org.id, checkout.changeId));
+      await operation();
+      expect((await BillingDeadlineService.run()).errors).toEqual([]);
+      const resume = () => scope(() => BillingService.retryBillingOperation(owner.id, org.id, checkout.changeId));
+      return { owner, org, branch, sibling, subscription, provider, gateway, changeId: checkout.changeId, operation, resume };
+    }
+
+    it.each([
+      { status: "HALTED", method: "UPI", hosted: true },
+      { status: "PENDING", method: "CARD", hosted: true },
+      { status: "PAUSED", method: "CARD", hosted: false },
+    ] as const)("resumes the same $status mandate after its local deadline", async ({ status, method, hosted }) => {
+      const { owner, org, branch, sibling, subscription, provider, gateway, changeId, operation, resume } = await startRecovery(status, method);
+      const overview = await BillingService.listPlansForOrganization(owner.id, org.id, branch.id);
+      expect(overview.experience).toMatchObject({ paymentAction: "RESUME_PAYMENT_RECOVERY", activeOperation: { id: changeId } });
+      expect(await operation()).toMatchObject({ operation: { id: changeId, canResumePaymentRecovery: true } });
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ canWrite: true, effectivePlan: "PRO" });
+      vi.mocked(provider.fetchSubscription).mockClear().mockResolvedValue({
+        ...gateway, short_url: hosted ? freshUrl : "https://example.test/untrusted",
+      });
+      const foreignOwner = await createUser();
+      const foreignOrg = await createOrg({ ownerId: foreignOwner.id });
+      const foreignBranch = await createBranch({ organizationId: foreignOrg.id });
+      await expect(withOwnerBillingScope(owner.id, org.id, sibling.id, () =>
+        BillingService.retryBillingOperation(owner.id, org.id, changeId))).rejects.toThrow("not found");
+      await expect(withOwnerBillingScope(foreignOwner.id, foreignOrg.id, foreignBranch.id, () =>
+        BillingService.retryBillingOperation(foreignOwner.id, foreignOrg.id, changeId))).rejects.toThrow("not found");
+      expect(provider.fetchSubscription).not.toHaveBeenCalled();
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const resumed = await resume();
+        expect(resumed).toMatchObject({ purpose: "RECOVERY", changeId, subscriptionId: gateway.id });
+        if (hosted) {
+          expect(resumed).toMatchObject({ hostedRecoveryUrl: freshUrl });
+          expect(resumed).not.toHaveProperty("subscription_card_change");
+        } else {
+          expect(resumed).toMatchObject({ subscription_card_change: true });
+          expect(resumed).not.toHaveProperty("hostedRecoveryUrl");
+        }
+        expect(provider.fetchSubscription).toHaveBeenCalledWith(gateway.id);
+        vi.mocked(provider.fetchSubscription).mockClear();
+      }
+      expect(await testPrisma.organizationBillingChange.findMany({ where: { agreementBranchId: branch.id } }))
+        .toMatchObject([{ id: changeId, organizationSubscriptionId: subscription.id, operationStatus: "CHECKOUT_OPEN", resolvedAt: null }]);
+      expect(await testPrisma.organizationSubscriptionInvoice.count({ where: { agreementBranchId: branch.id } })).toBe(0);
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ canWrite: true, effectivePlan: "PRO" });
+      expect(provider.createSubscription).not.toHaveBeenCalled();
+      expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    });
+
+    it("holds a non-card recovery without a trusted hosted URL and resolves an ended mandate on the same receipt", async () => {
+      const { branch, provider, gateway, changeId, resume } = await startRecovery("HALTED", "UPI");
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...gateway, short_url: "https://example.test/recovery" });
+      const pending = await resume();
+      expect(pending).toMatchObject({ operation: { id: changeId, operationStatus: "AWAITING_PROVIDER_CONFIRMATION" } });
+      expect(pending).not.toHaveProperty("checkout");
+      expect(pending).not.toHaveProperty("subscriptionId");
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...gateway, status: "cancelled" });
+      const terminal = await resume();
+      expect(terminal).toMatchObject({ operation: { id: changeId, operationStatus: "FAILED" } });
+      expect(terminal).not.toHaveProperty("checkout");
+      expect(terminal).not.toHaveProperty("subscriptionId");
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(provider.createSubscription).not.toHaveBeenCalled();
+      expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    });
+
+    it("checks a quarantined branch recovery on the original receipt and adopts later exact settlement", async () => {
+      const { owner, org, branch, sibling, subscription, provider, gateway, changeId, operation, resume } =
+        await startRecovery("HALTED", "CARD");
+      const checkStatus = () => withOwnerBillingScope(owner.id, org.id, branch.id, () =>
+        BillingService.reconcileMutation(owner.id, org.id, changeId));
+      const receipt = () => testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: changeId } });
+      const siblingMandate = () => testPrisma.organizationSubscription.findUniqueOrThrow({
+        where: { currentAgreementBranchId: sibling.id },
+      });
+      const originalSibling = await siblingMandate();
+      const held = {
+        id: changeId, organizationSubscriptionId: subscription.id, agreementBranchId: branch.id,
+        operationStatus: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED", resolvedAt: null,
+      };
+
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...gateway, plan_id: "plan_other" });
+      await expect(resume()).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+      expect(await receipt()).toMatchObject(held);
+      expect((await operation()).operation).toMatchObject({
+        id: changeId, canResumePaymentRecovery: false, requiresPaymentRecoveryReview: true,
+      });
+      const overview = await BillingService.listPlansForOrganization(owner.id, org.id, branch.id);
+      expect(overview.experience).toMatchObject({ paymentAction: "CHECK_PAYMENT_STATUS", activeOperation: { id: changeId } });
+
+      // Correcting the plan alone still leaves the renewal unpaid.
+      vi.mocked(provider.fetchSubscription).mockResolvedValue(gateway);
+      await expect(checkStatus()).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+      expect(await receipt()).toMatchObject(held);
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(await testPrisma.organizationSubscriptionInvoice.count({ where: { agreementBranchId: branch.id } })).toBe(0);
+      expect(await siblingMandate()).toEqual(originalSibling);
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ effectivePlan: "PRO", canWrite: true });
+
+      const start = Math.floor(Date.now() / 1000);
+      const end = start + 30 * 86400;
+      const invoice = {
+        entity: "invoice" as const, id: "inv_recovery_review", status: "paid", currency: "INR",
+        amount: 9900, amount_paid: 9900, amount_due: 0, subscription_id: gateway.id,
+        payment_id: "pay_recovery_review", billing_start: start, billing_end: end, paid_at: start,
+      };
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({
+        ...gateway, status: "active", current_start: start, current_end: end, paid_count: 1,
+      });
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [invoice] });
+      vi.mocked(provider.fetchPayment).mockResolvedValue({
+        entity: "payment", id: invoice.payment_id, status: "captured", captured: true, method: "card",
+        currency: invoice.currency, amount: invoice.amount, subscription_id: gateway.id, invoice_id: invoice.id, order_id: null,
+      });
+      const checked = await checkStatus();
+      expect(checked.operation).toMatchObject({ id: changeId, operationStatus: "APPLIED" });
+      expect(checked).not.toHaveProperty("checkout");
+      expect(await receipt()).toMatchObject({ organizationSubscriptionId: subscription.id, providerPaymentId: invoice.payment_id });
+      expect(await testPrisma.organizationSubscriptionInvoice.findMany({ where: { agreementBranchId: branch.id } }))
+        .toMatchObject([{ organizationSubscriptionId: subscription.id, commercialIntentChangeId: changeId,
+          razorpayInvoiceId: invoice.id, razorpayPaymentId: invoice.payment_id, paymentCaptured: true }]);
+      expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { id: subscription.id } })).toMatchObject({
+        razorpaySubscriptionId: gateway.id, paidThrough: new Date(end * 1000), confirmedCommercialIntentChangeId: changeId,
+      });
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ effectivePlan: "BASIC", canWrite: true });
+      expect(await siblingMandate()).toEqual(originalSibling);
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ effectivePlan: "PRO", canWrite: true });
+      expect(provider.createSubscription).not.toHaveBeenCalled();
+      expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    });
   });
 
   it("creates a Razorpay subscription checkout for the Basic SaaS plan", async () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id, name: "Owner Lab" });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id, name: "Owner Lab" });
     await testPrisma.organization.update({
       where: { id: org.id },
       data: { contactPhone: "09876 543210" },
@@ -427,7 +694,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     await expect(
       BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "AGENT_CONTROL" })
@@ -440,7 +707,7 @@ describe("BillingService SaaS subscriptions", () => {
 
   it("publishes all three monthly plans", async () => {
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     const overview = await BillingService.listPlansForOrganization(user.id, org.id);
 
@@ -458,7 +725,7 @@ describe("BillingService SaaS subscriptions", () => {
 
   it("publishes the server-controlled Checkout method availability", async () => {
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     vi.stubEnv("RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED", "false");
     await expect(BillingService.listPlansForOrganization(user.id, org.id))
@@ -575,122 +842,70 @@ describe("BillingService SaaS subscriptions", () => {
     }));
   });
 
-  it("excludes a scheduled trial removal from the first mandate, checkout replay and renewal estimate", async () => {
+  async function trialBranches() {
     const provider = createFakeRazorpayClient();
     setRazorpayClientForTests(provider);
     const owner = await createUser();
-    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2", selectedPostTrialPlan: "BASIC" });
+    const org = await createOrg({ ownerId: owner.id });
     const now = new Date();
-    const trialEndsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    await testPrisma.ownerTrialGrant.create({
-      data: { ownerId: owner.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE", claimedAt: now, trialStartedAt: now, trialEndsAt, consumedAt: now },
-    });
+    const trialEndsAt = new Date(now.getTime() + 30 * 86400000);
+    await testPrisma.ownerTrialGrant.create({ data: {
+      ownerId: owner.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE",
+      claimedAt: now, trialStartedAt: now, trialEndsAt, consumedAt: now,
+    } });
     const retained = await createBranch({ organizationId: org.id });
     const departing = await createBranch({ organizationId: org.id });
+    const start = () => withOwnerBillingScope(owner.id, org.id, retained.id,
+      () => BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" }));
+    return { owner, org, retained, departing, provider, trialEndsAt, start };
+  }
+
+  it("can undo one trial removal while another branch reconciles a response-lost checkout", async () => {
+    const { owner, org, retained, departing, provider, trialEndsAt, start } = await trialBranches();
     const { change } = await BranchService.scheduleBillingRemoval(owner.id, departing.id, "trial-remove-before-checkout");
-    const overview = await BillingService.listPlansForOrganization(owner.id, org.id);
-    expect(overview.experience).toMatchObject({ projectedQuantity: 1, projectedMonthlyTotal: 99 });
     vi.mocked(provider.createSubscription).mockImplementationOnce(async input => {
       const accepted = providerSubscriptionForCreate(input, "sub_retained_trial_branch");
       vi.mocked(provider.listSubscriptions!).mockResolvedValueOnce({ entity: "collection", count: 1, items: [accepted] });
       throw new RazorpayApiError("provider response was lost", { kind: "NETWORK" });
     });
-    await expect(BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" })).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
-    await expect(BranchService.undoBillingRemoval(owner.id, departing.id)).rejects.toThrow(/Reconcile the first recurring checkout/);
-    const checkout = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
+    await expect(start()).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    await expect(BranchService.undoBillingRemoval(owner.id, departing.id, change.id)).resolves.toEqual({ undone: true });
+    const checkout = await start();
     expect(checkout.summary).toMatchObject({ quantity: 1, estimatedMonthlyTotal: 99, planFeeDueToday: 0 });
     expect(provider.createSubscription).toHaveBeenCalledWith(expect.objectContaining({
-      quantity: 1, start_at: Math.floor(trialEndsAt.getTime() / 1000),
+      quantity: 1, start_at: Math.ceil(trialEndsAt.getTime() / 1000),
     }));
-    const replay = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
-    expect(replay.subscriptionId).toBe(checkout.subscriptionId);
+    expect((await start()).subscriptionId).toBe(checkout.subscriptionId);
     expect(provider.createSubscription).toHaveBeenCalledTimes(1);
-    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentAgreementBranchId: retained.id } }))
       .resolves.toMatchObject({ quantity: 1 });
-    await expect(BranchService.undoBillingRemoval(owner.id, departing.id)).rejects.toThrow(/recurring mandate/);
-    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, change.id)).rejects.toThrow(/recurring mandate/);
-    await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: retained.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+    expect(await testPrisma.organizationSubscription.count({ where: { organizationId: org.id, agreementBranchId: departing.id } })).toBe(0);
   });
 
-  async function createTrialWithTwoBranchMandate() {
-    const provider = createFakeRazorpayClient();
-    setRazorpayClientForTests(provider);
-    const owner = await createUser();
-    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
-    const boundary = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
-    const trialEndsAt = new Date(boundary * 1000);
-    await testPrisma.ownerTrialGrant.create({ data: {
-      ownerId: owner.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE",
-      trialStartedAt: new Date(), trialEndsAt, consumedAt: new Date(),
-    } });
-    const a = await createBranch({ organizationId: org.id, name: "A" });
-    const b = await createBranch({ organizationId: org.id, name: "B" });
-    const c = await createBranch({ organizationId: org.id, name: "C" });
-    await BranchService.scheduleBillingRemoval(owner.id, c.id, "c-before-checkout");
-    const checkout = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
-    expect(checkout.summary.quantity).toBe(2);
-    const source = { id: checkout.subscriptionId, entity: "subscription" as const, plan_id: "plan_basic",
-      status: "authenticated", total_count: 120, quantity: 2, paid_count: 0, start_at: boundary, payment_method: "card", offer_id: null };
-    vi.mocked(provider.fetchSubscription).mockResolvedValue(source);
-    vi.mocked(provider.fetchPayment).mockResolvedValue({
-      id: "pay_trialauth", entity: "payment", amount: 500, currency: "INR", status: "authorized",
-      method: "card", captured: false, order_id: null, invoice_id: null, subscription_id: source.id,
-    });
-    await expect(BillingService.verifySubscriptionSuccess(owner.id, org.id, {
-      changeId: checkout.changeId, razorpay_subscription_id: source.id, razorpay_payment_id: "pay_trialauth",
-      razorpay_signature: hmacSha256Hex(`pay_trialauth|${source.id}`, "secret"),
-    })).resolves.toMatchObject({ verified: true });
-    return { owner, org, a, b, c, source, provider, trialEndsAt, boundary };
-  }
-
-  it("archives the pre-checkout trial removal before processing a later branch quantity change", async () => {
-    const { owner, org, a, b, c, source, provider, trialEndsAt, boundary } = await createTrialWithTwoBranchMandate();
-    const removal = await BranchService.scheduleBillingRemoval(owner.id, b.id, "b-after-checkout");
-    expect(removal.change).toMatchObject({ status: "QUEUED", toQuantity: 1 });
-    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
-
-    const deadline = new Date(trialEndsAt.getTime() + 1000);
-    await expect(BranchService.archiveDueBillingRemovals(deadline)).resolves.toEqual({ archived: 1 });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: c.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: a.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
-
-    // The provider has entered the first billing period; the next queue item can now
-    // open its own one-branch replacement checkout at the next eligible boundary.
-    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...source, status: "active", paid_count: 1,
-      current_start: boundary, current_end: boundary + 30 * 24 * 60 * 60 });
-    vi.mocked(provider.createSubscription).mockImplementationOnce(async input =>
-      providerSubscriptionForCreate(input, "sub_onebranchreplacement"));
-    await expect(BillingMutationService.processNext(org.id, deadline)).resolves.toMatchObject({
-      id: removal.change.id, operationStatus: "CHECKOUT_OPEN", authorizedQuantity: 1,
-    });
-    expect(provider.createSubscription).toHaveBeenCalledTimes(2);
-    expect(provider.createSubscription).toHaveBeenLastCalledWith(expect.objectContaining({ quantity: 1 }));
-    await expect(BranchService.archiveDueBillingRemovals(deadline)).resolves.toEqual({ archived: 0 });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: b.id } })).resolves.toMatchObject({ billingStatus: "REMOVAL_SCHEDULED" });
-  });
-
-  it("undoes queued branch changes from Billing before archiving an earlier trial removal", async () => {
-    const { owner, org, b, c, provider, trialEndsAt } = await createTrialWithTwoBranchMandate();
-    const removal = await BranchService.scheduleBillingRemoval(owner.id, b.id, "undo-b-after-checkout");
-    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, removal.change.id)).resolves.toEqual({ undone: true });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: b.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
-    const added = await BranchService.createBranchForOrg({
-      organizationId: org.id, userId: owner.id, name: "D", contactPhone: "9876543210", idempotencyKey: "d-after-checkout",
-    });
-    expect(added.billingStatus).toBe("PENDING_ACTIVATION");
-    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, added.billingChangeId)).resolves.toEqual({ undone: true });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: added.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
-
-    const reactivation = await BranchService.reactivateArchivedBranch(owner.id, added.id, "reactivate-d");
-    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, added.billingChangeId)).rejects.toThrow(/not found/i);
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: added.id } })).resolves.toMatchObject({ billingStatus: "PENDING_ACTIVATION" });
-    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, reactivation.change.id)).resolves.toEqual({ undone: true });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: added.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
-
+  it("archives a trial branch independently of a sibling's open paid authorization", async () => {
+    const { owner, retained, departing, provider, trialEndsAt, start } = await trialBranches();
+    const checkout = await start();
+    await BranchService.scheduleBillingRemoval(owner.id, departing.id, "remove-during-sibling-checkout");
     await expect(BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1))).resolves.toEqual({ archived: 1 });
-    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: c.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+    expect((await testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } })).billingStatus).toBe("ARCHIVED");
+    expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentAgreementBranchId: retained.id } }))
+      .toMatchObject({ razorpaySubscriptionId: checkout.subscriptionId, quantity: 1, status: "CREATED" });
+    expect(provider.cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it("keeps reopened trial branches on their original trial until its original boundary", async () => {
+    const { owner, org, departing, provider, trialEndsAt, start } = await trialBranches();
+    await start();
+    const removal = await BranchService.scheduleBillingRemoval(owner.id, departing.id, "undo-trial-removal");
+    await expect(BranchService.undoBillingRemoval(owner.id, departing.id, removal.change.id)).resolves.toEqual({ undone: true });
+    await BranchService.scheduleBillingRemoval(owner.id, departing.id, "fresh-trial-removal");
+    await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    const archived = await testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } });
+    expect(archived.billingStatus).toBe("ARCHIVED");
+    await testPrisma.ownerTrialGrant.update({where:{ownerId:owner.id},data:{status:"EXPIRED"}});
+    await BranchService.reactivateArchivedBranch(owner.id, departing.id, "reopen-after-expiry");
+    expect((await testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } })).billingStatus).toBe("PENDING_ACTIVATION");
+    expect(await testPrisma.ownerTrialGrant.findUniqueOrThrow({ where: { ownerId: owner.id } })).toMatchObject({ organizationId: org.id, trialEndsAt });
     expect(provider.createSubscription).toHaveBeenCalledTimes(1);
   });
 
@@ -744,7 +959,7 @@ describe("BillingService SaaS subscriptions", () => {
     }));
     setRazorpayClientForTests(fakeRazorpay);
     const legacyOwner = await createUser({ email: "legacy-owner@example.com" });
-    const legacyOrg = await createOrg({ ownerId: legacyOwner.id, name: "Legacy Lab" });
+    const legacyOrg = await createOrg({ billingModelVersion: "LEGACY", ownerId: legacyOwner.id, name: "Legacy Lab" });
     await testPrisma.saasRazorpayPlan.create({
       data: {
         providerMode: "TEST",
@@ -776,7 +991,7 @@ describe("BillingService SaaS subscriptions", () => {
       },
     });
     const newOwner = await createUser({ email: "new-owner@example.com" });
-    const newOrg = await createOrg({ ownerId: newOwner.id, name: "New Lab" });
+    const newOrg = await createOrg({ billingModelVersion: "LEGACY", ownerId: newOwner.id, name: "New Lab" });
 
     const checkout = await BillingService.createSubscriptionCheckout(newOwner.id, newOrg.id, { plan: "BASIC" });
 
@@ -799,7 +1014,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     const [first, second] = await Promise.all([
       BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" }),
@@ -822,7 +1037,7 @@ describe("BillingService SaaS subscriptions", () => {
     })).resolves.toBe(1);
   });
 
-  it("blocks a branch quantity mutation while initial provider creation is in flight", async () => {
+  it("adds an independently billed sibling while initial provider creation is in flight", async () => {
     const fakeRazorpay = createFakeRazorpayClient();
     const providerEntered = deferred();
     const releaseProvider = deferred();
@@ -835,9 +1050,9 @@ describe("BillingService SaaS subscriptions", () => {
     const user = await createUser();
     const org = await createOrg({
       ownerId: user.id,
-      billingModelVersion: "WORKSPACE_V2",
+      billingModelVersion: "BRANCH_V3",
     });
-    await createBranch({ organizationId: org.id });
+    const branch = await createBranch({ organizationId: org.id });
     const now = new Date();
     await testPrisma.ownerTrialGrant.create({
       data: {
@@ -852,11 +1067,11 @@ describe("BillingService SaaS subscriptions", () => {
       },
     });
 
-    const checkoutPromise = BillingService.createSubscriptionCheckout(
+    const checkoutPromise = withOwnerBillingScope(user.id, org.id, branch.id, () => BillingService.createSubscriptionCheckout(
       user.id,
       org.id,
       { plan: "BASIC" }
-    );
+    ));
     await providerEntered.promise;
     try {
       await expect(BranchService.createBranchForOrg({
@@ -864,8 +1079,8 @@ describe("BillingService SaaS subscriptions", () => {
         userId: user.id,
         name: "Racing Branch",
         contactPhone: "9876543210",
-        idempotencyKey: "racing-branch",
-      })).rejects.toBeInstanceOf(BillingChangeInProgressError);
+        idempotencyKey: "racing-branch", futurePlan: "PRO",
+      })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
     } finally {
       releaseProvider.resolve();
     }
@@ -875,7 +1090,7 @@ describe("BillingService SaaS subscriptions", () => {
       summary: { quantity: 1 },
     });
     await expect(testPrisma.branch.count({ where: { organizationId: org.id } }))
-      .resolves.toBe(1);
+      .resolves.toBe(2);
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
   });
 
@@ -887,9 +1102,6 @@ describe("BillingService SaaS subscriptions", () => {
     const branch = await createBranch({ organizationId: organization.id });
     const sibling = await createBranch({ organizationId: organization.id });
     const other = await createBranch({ organizationId: foreign.id });
-    await testPrisma.branchBillingAgreement.createMany({ data: [branch, sibling, other].map(row => ({
-      branchId: row.id, organizationId: row.organizationId, selectedPlan: "STANDARD" as const,
-    })) });
     const keys = Array.from({ length: 6 }, () => crypto.randomUUID());
     const applied = { type: "PLAN_UPGRADE", status: "APPLIED", operationStatus: "APPLIED", resolvedAt: new Date() } as const;
     await testPrisma.organizationBillingChange.createMany({ data: [
@@ -916,9 +1128,8 @@ describe("BillingService SaaS subscriptions", () => {
     const owner = await createUser();
     const other = await createUser();
     const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
-    const otherWorkspace = await createOrg({ ownerId: owner.id });
+    const otherWorkspace = await createOrg({ billingModelVersion: "LEGACY", ownerId: owner.id });
     const branch = await createBranch({ organizationId: organization.id });
-    await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: "BASIC" } });
     const ends = new Date(Date.now() + 5 * 86400000);
     const terms = { status: "ACTIVE", source: "ONBOARDING", trialPlan: "PRO", trialEndsAt: ends } as const;
     await testPrisma.ownerTrialGrant.create({ data: { ...terms, ownerId: other.id, organizationId: organization.id } });
@@ -977,12 +1188,15 @@ describe("BillingService SaaS subscriptions", () => {
     const owner = await createUser();
     const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
     const branch = await createBranch({ organizationId: organization.id, billingStatus: "PENDING_ACTIVATION" });
-    await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: "BASIC" } });
     const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, organization.id, branch.id, work);
     const first = await run(() => BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan: "BASIC" }));
     await testPrisma.organizationBillingChange.update({ where: { id: first.changeId }, data: { confirmationDeadlineAt: new Date(Date.now() - 1000) } });
     const operation = await run(() => BillingService.getBillingOperation(owner.id, organization.id, first.changeId));
     expect(operation.checkout).toBeUndefined();
+    expect(operation.operation).toMatchObject({ id: first.changeId, operationStatus: "AWAITING_PROVIDER_CONFIRMATION" });
+    await expect(run(() => BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan: "BASIC" })))
+      .rejects.toMatchObject({ existingChangeId: first.changeId });
+    expect((await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: first.changeId } })).resolvedAt).toBeNull();
     const created = await vi.mocked(provider.createSubscription).mock.results[0].value;
     vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...created, status: "expired" });
     vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", items: [], count: 0 });
@@ -991,6 +1205,17 @@ describe("BillingService SaaS subscriptions", () => {
     expect(result.commercialIntentChangeId).toBe(first.changeId);
     expect((await EntitlementService.getBranchProfile(branch.id)).canWrite).toBe(false);
     expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+    const retry = await run(() => BillingService.retryBillingOperation(owner.id, organization.id, first.changeId));
+    expect(retry).toMatchObject({ operation: { id: first.changeId, operationStatus: "FAILED" } });
+    expect(retry).not.toHaveProperty("checkout");
+    vi.mocked(provider.createSubscription).mockImplementationOnce(async request => providerSubscriptionForCreate(request, "sub_basic_after_expiry"));
+    const next = await run(() => BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan: "BASIC" }));
+    expect(next).toMatchObject({ subscriptionId: "sub_basic_after_expiry", summary: { quantity: 1 } });
+    expect(next.changeId).not.toBe(first.changeId);
+    expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { razorpaySubscriptionId: created.id } }))
+      .toMatchObject({ status: "EXPIRED", currentAgreementBranchId: null, agreementBranchId: branch.id });
+    expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+    expect(provider.createSubscription).toHaveBeenCalledTimes(2);
     expect(provider.cancelSubscription).not.toHaveBeenCalled();
   });
 
@@ -1005,8 +1230,8 @@ describe("BillingService SaaS subscriptions", () => {
     const owner = await createUser();
     const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
     const [basic, pro] = await Promise.all((["BASIC", "PRO"] as const).map(async plan => {
-      const branch = await createBranch({ organizationId: organization.id, billingStatus: "PENDING_ACTIVATION" });
-      await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: plan } });
+      const branch = await createBranch({ organizationId: organization.id, billingStatus: "PENDING_ACTIVATION", selectedPlan: plan });
+
       return branch;
     }));
     const run = <T>(branchId: string, work: () => Promise<T>) => withOwnerBillingScope(owner.id, organization.id, branchId, work);
@@ -1179,7 +1404,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     await expect(BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" }))
       .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
@@ -1232,7 +1457,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     await expect(BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" }))
       .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
@@ -1273,7 +1498,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     await expect(BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" }))
       .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
@@ -1537,7 +1762,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     const first = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const retried = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
@@ -1600,7 +1825,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const first = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const lapsedAt = new Date("2026-08-11T00:00:00.000Z");
     await testPrisma.organizationSubscription.update({
@@ -1646,7 +1871,7 @@ describe("BillingService SaaS subscriptions", () => {
       const fakeRazorpay = createFakeRazorpayClient();
       setRazorpayClientForTests(fakeRazorpay);
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
       const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
       await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
         event: "FAILED",
@@ -1681,7 +1906,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     await Promise.allSettled([
       BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" }),
@@ -1734,7 +1959,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
 
     await expect(BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" }))
       .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
@@ -1782,7 +2007,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC", returnPath: `/org/${org.id}/analytics` });
 
     const result = await BillingService.verifySubscriptionSuccess(user.id, org.id, {
@@ -1989,7 +2214,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     const result = await BillingService.verifySubscriptionSuccess(user.id, org.id, {
@@ -2038,7 +2263,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     const result = await BillingService.verifySubscriptionSuccess(user.id, org.id, {
@@ -2065,7 +2290,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, {
@@ -2091,7 +2316,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     const declined = await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
@@ -2137,7 +2362,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
       event: "DECLINED",
@@ -2183,7 +2408,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
       event: "AWAITING_PROVIDER_CONFIRMATION",
@@ -2214,7 +2439,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
       event: "AWAITING_PROVIDER_CONFIRMATION",
@@ -2233,7 +2458,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "PRO" });
     await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
       event: "AWAITING_PROVIDER_CONFIRMATION",
@@ -2346,7 +2571,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     const pending = await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
@@ -2372,7 +2597,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
@@ -2396,7 +2621,7 @@ describe("BillingService SaaS subscriptions", () => {
     vi.mocked(fakeRazorpay.fetchSubscription).mockRejectedValueOnce(new Error("temporary provider outage"));
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     const result = await BillingService.verifySubscriptionSuccess(user.id, org.id, {
@@ -2422,7 +2647,7 @@ describe("BillingService SaaS subscriptions", () => {
     }));
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     const verification = BillingService.verifySubscriptionSuccess(user.id, org.id, {
@@ -2467,7 +2692,7 @@ describe("BillingService SaaS subscriptions", () => {
     }));
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const input = {
       changeId: checkout.changeId,
@@ -2621,7 +2846,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
       event: "FAILED",
@@ -2715,7 +2940,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     await BillingService.verifySubscriptionSuccess(user.id, org.id, {
       changeId: checkout.changeId,
@@ -2750,7 +2975,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     await expect(BillingService.requestCancellation(user.id, org.id)).rejects.toThrow(
@@ -2902,10 +3127,7 @@ describe("BillingService SaaS subscriptions", () => {
     setRazorpayClientForTests(provider);
     const owner = await createUser();
     const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
-    const branch = await createBranch({ organizationId: org.id });
-    await testPrisma.branchBillingAgreement.create({
-      data: { organizationId: org.id, branchId: branch.id, selectedPlan: "STANDARD" },
-    });
+    const branch = await createBranch({ organizationId: org.id, selectedPlan: "STANDARD" });
     await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "STANDARD" });
     const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, org.id, branch.id, work);
     const cancel = (key: string) => run(() => BillingService.requestCancellation(owner.id, org.id, key));
@@ -3778,7 +4000,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const rawBody = JSON.stringify({
       event: "subscription.activated",
@@ -3875,7 +4097,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const rawBody = subscriptionActivatedWebhookBody();
     const signature = hmacSha256Hex(rawBody, "webhook_secret");
@@ -3920,7 +4142,7 @@ describe("BillingService SaaS subscriptions", () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const rawBody = subscriptionActivatedWebhookBody();
     const startedAt = new Date(Date.now() - 5 * 60 * 1000);
@@ -3976,7 +4198,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     const rawBody = subscriptionActivatedWebhookBody();
     const signature = hmacSha256Hex(rawBody, "webhook_secret");
@@ -4122,7 +4344,7 @@ describe("BillingService SaaS subscriptions", () => {
     });
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ billingModelVersion: "LEGACY", ownerId: user.id });
     await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
 
     async function sendStatus(status: string, eventId: string) {

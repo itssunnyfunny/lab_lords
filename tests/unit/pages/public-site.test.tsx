@@ -33,22 +33,7 @@ vi.mock("@/lib/public-i18n/server", () => ({ publicStrings: async () => ({
 afterEach(() => { language.current = "en"; vi.unstubAllEnvs(); });
 
 describe("complete public marketing journey", () => {
-  it.each([["false", "true"], ["true", "false"]])("retains shared-plan terms when either enrollment control is off", async (workspace, branch) => {
-    vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", workspace);
-    vi.stubEnv("BRANCH_BILLING_V3_ONBOARDING_ENABLED", branch);
-    const [home, features, pricing, faq] = await Promise.all([Home, Features, Pricing, Faq].map(Page => renderPublic(<Page />)));
-    expect(pricing).toContain("Your organization’s plan applies to all its branches");
-    expect(pricing).toContain("3 × ₹299 = ₹897");
-    expect(features).toContain("Each billable branch is charged separately under the chosen plan.");
-    expect(home).toContain("Three plans. Clear monthly pricing for each billable branch.");
-    expect(faq).toContain("the total depends on your plan and billable branch count");
-    expect(home + features + pricing + faq).not.toContain(publicBranchBillingCopy.intro);
-    expect(pricing).not.toContain("Together these plans cost");
-  });
-
   it.each(publicLocales)("shows separately billed new branches and a catalogue-based mixed total in %s", async locale => {
-    vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "true");
-    vi.stubEnv("BRANCH_BILLING_V3_ONBOARDING_ENABLED", "true");
     language.current = locale;
     const t = publicTranslator(messagesFor(publicCatalog, locale));
     const [home, features, pricing, faq] = await Promise.all([Home, Features, Pricing, Faq].map(Page => renderPublic(<Page />)));
@@ -56,7 +41,7 @@ describe("complete public marketing journey", () => {
     expect(home).toContain(t(publicBranchBillingCopy.branches));
     expect(features).toContain(t(publicBranchBillingCopy.eligibleReports));
     expect(pricing).toContain(t(publicBranchBillingCopy.charges));
-    for (const plan of publicBillingPlans(true)) {
+    for (const plan of publicBillingPlans()) {
       expect(pricing).toContain(t(publicBranchBillingCopy.mixedLine, { plan: plan.shortName, amount: plan.amount! }));
     }
     expect(pricing).toContain(t(publicBranchBillingCopy.mixedTotal, { total: "897" }));

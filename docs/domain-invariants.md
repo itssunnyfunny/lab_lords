@@ -2,12 +2,14 @@
 
 ## Independent branch agreements — local implementation, 25 November 2026
 
-- **Must preserve—enforced:** BRANCH_V3 assigns each branch one agreement in its tenant. Current and pending provider positions are unique to that agreement. Its catalogue subscription has quantity one. The original aggregate ledger retains its historical ownership.
+- **Must preserve—enforced:** Every new workspace uses BRANCH_V3 and assigns each branch one agreement in its tenant. Current and pending provider positions are unique to that agreement. Its catalogue subscription has quantity one. The original aggregate ledger retains its historical ownership.
 - **Service-layer contract—not DB-enforced:** A future selection, browser callback or authorization page never proves settled coverage. Interactive access combines the exact branch's evidence, bounded trial or authorization grant, lifecycle, role and permission overrides. Organization totals for premium reports identify their eligible branch scope.
 - **Service-layer contract—not DB-enforced:** A converted branch can retain the remaining verified period of its retired aggregate source. It cannot apply that invoice to a successor. The original owner trial keeps its consumed identity, tier and dates.
 - **Must preserve—enforced:** Agreement mutations do not change student fee anchors, enrollment periods, dues, receipts, allocations, staff permissions or shared sender ownership. The existing system-owned student-fee accrual and branch closure/reopening rules apply through plan changes.
 
-See the [cohort and recovery rules](billing/independent-branch-rollout.md).
+See the [initialization and recovery rules](billing/independent-branch-rollout.md).
+
+An owner can resume an unsettled recovery on the branch's current mandate after the local confirmation deadline. Each explicit resume checks the original operation and subscription against provider evidence. A hosted link or embedded card checkout only continues payment collection. Restoring paid coverage requires the matching captured payment, invoice and paid period.
 
 ## Complete owner setup — 5 November 2026
 
@@ -217,14 +219,17 @@ unit/API/integration coverage.
 
 ## Organizations, branches, trials, and entitlements
 
-- **Must preserve—enforced:** New workspaces use canonical onboarding with an
-  explicit V2 commercial state and selected plan. Holding the V2 release flag
-  blocks new creation; it must never create new LEGACY writable workspaces.
-  Existing legacy compatibility and the once-per-owner trial policy remain intact.
-
+- **Must preserve—enforced:** Onboarding creates a BRANCH_V3 organization,
+  its first branch agreement and the branch's selected future plan in the same
+  transaction as the setup receipt and owner trial decision. Subsequent branches
+  require their own future plan. They open during the owner's existing trial
+  or enter pending activation if the trial has ended.
 - **Must preserve—enforced:** User-initiated operational mutations require both
   the role/action permission and a writable branch entitlement. `ARCHIVED`,
   `PENDING_ACTIVATION`, and `REMOVAL_SCHEDULED` branches reject those mutations.
+  A scheduled or archived branch with valid Standard or Pro coverage permits
+  authorized reads of attendance and outstanding dues. Its premium mutation
+  entitlements are empty. Pending activation grants no full-workspace access.
   (`services/entitlement.service.ts`, entitlement integration tests)
 - **Must preserve—enforced:** System-owned monthly generation accrues student
   dues in operating branches during temporary subscription restrictions.
@@ -237,7 +242,7 @@ unit/API/integration coverage.
   Existing debts and receipts retain their normal access rules. The job can write
   student fees and cannot grant SaaS access or initiate a provider charge.
   (`app/api/cron/payments/daily/route.ts`, `services/payment.service.ts`)
-- **Must preserve—enforced:** Workspace Billing V2 base access fails closed:
+- **Must preserve—enforced:** Branch agreement access uses these evidence rules.
   - an active owner trial grants its explicitly recorded BASIC, STANDARD or PRO
     tier. Historical grants and V1 onboarding commands retain STANDARD. A separately
     recorded replacement grant or independently verified higher paid tier can raise
@@ -254,16 +259,12 @@ unit/API/integration coverage.
     read-only unless a separately authorized replacement is inside its trusted
     grace window.
   (`lib/billingState.ts`, `services/entitlement.service.ts`, entitlement tests)
-- **Must preserve—enforced:** Legacy billing-model organizations remain writable.
-  A legacy organization with no subscription receives the deliberate Basic
-  fallback. `AUTHENTICATED` means mandate readiness, and neither
-  `AUTHENTICATED`, `ACTIVE`, nor an unbacked future `paidThrough` grants premium
-  entitlement. An untrusted legacy subscription is downgraded to Basic
-  entitlements but still returns full write access; exact current settlement
-  evidence grants the subscribed plan through the same normal paid-period
-  boundary as V2. Owner trials and explicitly bounded replacement access remain
-  separate grants. Do not apply V2 read-only fallback rules to the legacy
-  branch.
+- **Must preserve—enforced:** A historical organization subscription grants
+  no automatic branch write access. Any already-recorded coverage from a
+  retired aggregate mandate ends at its recorded cutoff and requires exact
+  settled evidence in the same tenant and provider mode. Historical invoices
+  retain their original subscription. An initialized branch with no trial,
+  settled period or authorized replacement grant is read-only.
 - **Must preserve—enforced:** An owner trial is granted once, lasts 30 days, is
   bound to its organization, and is not extended by adding branches. A migrated
   trial is available only to an organization that has never been billed.
@@ -278,44 +279,33 @@ unit/API/integration coverage.
   for Basic, Standard and Pro, including active supported paid access after the
   trial. `students` permission, tenant/branch ownership, branch writability,
   Import V2 enablement, validation, duplicates and mutation limits still apply.
-  Expired unpaid V2 workspaces cannot mutate import data. This does not grant
+  Branches without current write access cannot mutate import data. This does not grant
   attendance, staff controls, analytics, AI generation or WhatsApp to Basic.
-- **Must preserve—enforced:** Adding, scheduling removal of, and reactivating a
-  billable branch are owner-only operations. The branch lifecycle update and
-  durable billing-change intent are atomic and use stable idempotency. At least
-  one billable branch must remain after all scheduled removals. Under the
-  organization lock, the projected count includes `ACTIVE` and
-  `PENDING_ACTIVATION` branches. The first recurring checkout, its frozen
-  provider intent, and the owner's next-period quote use that same count.
-  Branch changes wait for resolution when the first checkout outcome is
-  uncertain, so recovery can adopt the original mandate at its frozen quantity.
-  All active trial tiers quote a zero plan fee today. The monthly total
-  displays the chosen plan's branch price times the projected count.
-- **Must preserve—enforced:** Scheduled removal does not delete the branch. It
-  becomes read-only and is archived only at the effective boundary after the
-  required provider confirmation. Historical data remains available according
-  to authorization. A trial removal recorded before the first mandate can be
-  undone locally before provisioning. Once a live mandate covers the remaining
-  branches, restoring an excluded branch requires a quantity change through
-  the provider-backed reactivation flow after archival. The hourly deadline
-  reports historical schedules that leave zero branches or conflict with the
-  current mandate quantity for operator review. When checking a pre-mandate
-  removal, it adds back later queued removals and subtracts later queued
-  additions and reactivations for that mandate. Those changes have updated
-  local branch statuses and still await their turn at the provider. Billing
-  undo restores the branch on a queued removal and archives a discarded
-  pending activation. An already-active trial addition uses scheduled removal.
-  Before a local subscription exists, an unresolved first checkout's frozen quantity
-  must also match the continuing branch count to allow archival.
-  (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
+- **Must preserve—enforced:** Branch creation, scheduling removal, Undo,
+  discarding pending activation and reopening require the organization owner.
+  Each branch has its own quantity-one mandate and ordered changes. Removing
+  or discarding a branch must leave another active or pending branch. This
+  organization-level count protects business continuity. It does not set a
+  price, quantity or entitlement on another agreement.
+- **Must preserve—enforced:** Scheduled removal freezes operational writes.
+  The branch retains its records. A live branch mandate has a separate
+  cancellation intent. Undo requires the original branch operation, an open
+  cutoff and a cancellation that can still be withdrawn safely. Archival waits
+  for the effective date and the required same-mode terminal evidence. An
+  unresolved provider action keeps the branch scheduled for reconciliation.
+  Reopening uses the same agreement and the unexpired original trial, or
+  requires branch activation when that trial has ended. The branch retains its
+  student records and fee history.
+  (`services/independentBranchLifecycle.service.ts`, branch lifecycle integration tests)
 - **Must preserve—enforced:** Each canonical onboarding command requires an
   authenticated-owner-scoped, bounded idempotency key and a stable versioned
   hash of the validated setup input. The original workspace, branch, trial
   decision (and any new grant), and durable receipt commit together. An exact
   replay returns only that
   owner's original linked result without another setup or trial mutation;
-  changed input under the same key conflicts. A different key may create an
-  intentional additional workspace but never a second lifetime owner trial.
+  changed input under the same key conflicts. Owners with an existing
+  organization manage additional branches in that organization. A different
+  key cannot create another organization through onboarding or renew the trial.
   The browser must retain the frozen account-scoped command before dispatch
   and through uncertain responses; a missing or unsafe pending command cannot
   be silently replaced. Receipt identity is retained without automatic expiry,
@@ -573,7 +563,7 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** Exact outcome recovery and confirmation of its
   matching provider-action receipt commit together. A recovered undo or settled
   update must not leave its own ADMITTED/UNKNOWN receipt blocking later billing
-  work. Confirmation is scoped to organization, immutable action identity,
+  work. Confirmation is scoped to organization, branch agreement, immutable action identity,
   provider mode/subscription and dispatch attempt; it cannot resolve an unrelated
   cancellation or replacement. A lost confirmation race rolls back adoption.
   (`services/billingProviderAction.service.ts`, `billingMutation.service.ts`,
@@ -582,7 +572,8 @@ unit/API/integration coverage.
 
 - **Must preserve—enforced:** Organization details, settings, branch lists, and
   subscription-billing owner entry points resolve the organization with both
-  `id` and `ownerId` before loading billing data or performing provider work.
+  `id` and `ownerId`. Acting on billing also requires the exact branch and its
+  agreement before loading active operation data or performing provider work.
   Foreign and nonexistent organization IDs return the exact same generic 404
   body. HTTP mappings use typed errors rather than authorization/not-found
   message matching. (`services/organization.service.ts`, `lib/billingHttp.ts`,
@@ -597,18 +588,17 @@ unit/API/integration coverage.
   and explicit organization allowlist before any scoped query, write, or
   provider fetch.
   (`scripts/billing-operation-target.ts`, billing-operation target tests)
-- **Must preserve—enforced:** An organization has one current subscription slot
-  and one pending-replacement slot. Previous subscription rows remain as
-  history and replacement lineage rather than being rewritten as the current
-  row. (`prisma/schema.prisma`, billing integration tests)
-- **Must preserve—enforced:** New Workspace Billing V2 plan, trial-plan and branch-quantity changes
-  for CARD, UPI and eMandate use an explicitly authorized replacement mandate.
-  Stored CARD identity is not proof of provider-supported in-place updates;
-  domestic/international capability is not persisted. Unknown methods remain
-  blocked. Card-only replacement is permitted with the multi-method flag off,
-  while UPI/eMandate replacement and proactive payment-method switching retain
-  that gate. Existing native scheduled changes retain their own undo/recovery
-  protocol and are not rewritten as replacement history.
+- **Must preserve—enforced:** Each branch agreement has one current and one
+  pending-replacement subscription slot. Previous rows retain their original
+  agreement and replacement lineage. Organization-only slots belong to
+  historical aggregate billing.
+- **Must preserve—enforced:** Branch plan and trial-time plan changes that
+  replace an existing CARD, UPI or eMandate require explicit authorization.
+  An identified CARD, UPI or eMandate source can be replaced when the owner
+  changes the plan or payment method. An unknown source method requires
+  reconciliation. Account capability configuration selects the methods offered
+  by Checkout. Historical native scheduled changes retain their original
+  evidence and recovery protocol.
   (`services/billingReplacementPolicy.ts`, `services/billingMutation.service.ts`,
   `services/billing.service.ts`, replacement-policy and billing integration tests)
 - **Must preserve—enforced:** Provider subscription status alone never grants
@@ -660,7 +650,7 @@ unit/API/integration coverage.
   (`services/billingCommercialEvidence.service.ts`,
   `services/billingPaidEvidence.service.ts`, billing callback and evidence tests)
 - **Service-layer contract—not DB-enforced:** A signature-verified callback claim
-  records its exact organization/change/mode/subscription/payment binding in an
+  records its exact organization/agreement/change/mode/subscription/payment binding in an
   append-only service audit before provider reads. Recovery cannot substitute an
   unverified payment hint or invent historical proof. A fully refunded INR 5
   card/UPI verification token is authorization-only evidence for an exact,
@@ -708,8 +698,8 @@ unit/API/integration coverage.
   `services/billing.service.ts`, `docs/production-runbook.md`, billing webhook
   and reconciliation tests)
 - **Must preserve—enforced:** Billing-change idempotency keys are globally
-  unique and may be replayed only with the same payload. Each organization's
-  changes have a monotonic FIFO sequence, use database locking/leases, reject a
+  unique and may be replayed only with the same payload and agreement. Each
+  branch agreement’s changes have a monotonic FIFO sequence, use database locking/leases, reject a
   stale worker, and do not allow a later intent to pass an unresolved earlier
   intent. The source subscription is immutable for the mutation.
   (`services/billingMutation.service.ts`, billing-mutation integration tests)
@@ -736,19 +726,14 @@ unit/API/integration coverage.
   `services/billingReplacement.service.ts`, billing reconciliation tests)
 - **Must preserve—enforced:** Local billing undo cannot pass an in-flight,
   awaiting-payment, manual-review, or unclassified failed provider mutation.
-  A branch scheduled for removal is restored only in the same transaction that
-  durably records provider-confirmed scheduled-change undo; unresolved provider
-  quantity never restores branch access. Replacement-candidate cancellation uses
-  its own durable attempt; ambiguous cleanup is read-only on retry, and branch
-  restoration shares the exact transaction that clears the provider-confirmed
-  candidate slot. (`services/billing.service.ts`,
-  `services/billingReplacement.service.ts`, `services/branch.service.ts`, billing
-  and branch lifecycle integration tests)
-- **Must preserve—enforced:** Pending branch retry/discard includes trial
-  subscription updates. A missing candidate pointer does not prove no provider
-  effect: in-flight, uncertain or unclassified creation cannot be discarded
-  locally; only queued or definitely rejected creation remains locally
-  discardable. (`services/branch.service.ts`, branch lifecycle integration tests)
+  Undoing branch removal restores the branch and withdraws any still-queued
+  cancellation in one transaction. Recovery of a dispatched candidate
+  cancellation uses the same agreement's immutable provider-action receipt.
+  An uncertain outcome requires read-only reconciliation.
+- **Must preserve—enforced:** Retrying a pending branch opens its own Account
+  Billing checkout. Discard requires an idle agreement, no nonterminal mandate
+  and another billable branch. Pending replacement, unresolved operation or
+  active mutation lease keeps the branch available for recovery.
 - **Must preserve—enforced:** Replacement access remains fail-closed until the
   replacement is authenticated or active and its lineage, plan, and quantity
   exactly match the approved intent. A mismatch removes provisional trust and
@@ -1331,7 +1316,8 @@ unit/API/integration coverage.
   require `view_payments`, including payment-derived counts, rates and scores;
   an explicit payment-view denial does not remove separately authorized student
   and seat analytics. Restricted finance is omitted rather than represented as
-  zero. Organization snapshots require owner access and the entitlement. Raw
+  zero. Organization snapshots require owner access and include only branches
+  with the required entitlement, identifying the included and excluded scope. Raw
   analytics helpers are not tenant authorization boundaries and must be called
   only after route/service authorization.
   (`app/api/`, `services/entitlement.service.ts`, analytics route tests)
@@ -1346,8 +1332,7 @@ unit/API/integration coverage.
 - **Known discrepancy—do not rely on:** Trend analytics recompute past-looking
   values from today's mutable tables rather than immutable historical
   snapshots. Student status and the active-shift set are current, not reliably
-  as-of the plotted date. Organization analytics also includes archived
-  branches. Do not describe these trends as a complete historical ledger.
+  as-of the plotted date. The eligible branch scope is evaluated at read time. Do not describe these trends as a complete historical ledger.
 
 ## Change checklist
 
@@ -1403,12 +1388,12 @@ Before changing any rule above:
 - **Service-layer contract—not DB-enforced:** System contexts remain the
   authenticated cron/provider entry points and persisted Workflow ownership
   protocols documented in [access/worker contracts](ai/access-and-worker-contracts.md).
-  This change does not resolve or approve the daily dues cron writability
-  discrepancy recorded below.
+  The daily student fee job follows the operating-branch accrual window
+  described in the organizational invariants above.
 
 ## Three-plan catalogue v2 — 2026-10-23
 
-- **Must preserve—enforced:** BASIC/STANDARD/PRO have unit prices 99/299/499 INR monthly, shared across an organization's billable branches. Standard and Pro receive staff, advanced analytics and AI; only Pro receives WhatsApp entitlement. Provider configuration and operation permission checks remain additional requirements.
+- **Must preserve—enforced:** BASIC/STANDARD/PRO cost 99/299/499 INR monthly for one branch. Each branch selects its own plan and has an independent billing period. Standard and Pro receive staff, advanced analytics and AI; only Pro receives WhatsApp entitlement. Provider configuration and operation permission checks remain additional requirements.
 - **Must preserve—enforced:** a catalogue migration must not reinterpret old internal PRO payment evidence as new Pro. The v2 migration refuses a populated billing ledger; see [cutover](billing/three-plan-cutover.md). Paid facts, uncertain provider writes and frozen commercial snapshots are not rewritten.
 - **Service-layer contract—not DB-enforced:** A new 30-day owner trial uses its explicitly persisted Basic, Standard or Pro tier; historical grants retain Standard. A recorded replacement grant may raise explicit access but cannot reduce remaining paid/trial access. A selected plan or mandate authorization alone is not paid settlement. Downgrades preserve records and follow the established boundary.
 
@@ -1421,9 +1406,8 @@ Before changing any rule above:
   navigation. Existing AI, analytics, staff-management and Pro-only WhatsApp
   entitlement requirements remain. Existing authorized staff memberships are
   retained on downgrade; their core object permissions still apply.
-- **Must preserve—enforced:** All branches use their organization's effective
-  subscription access, with independent branch status, permissions and writable
-  state. The interface consumes this projection and never grants access. Trial,
+- **Must preserve—enforced:** Each branch resolves its own effective plan,
+  eligible features, lifecycle status, permissions and writable state. The interface consumes this projection and never grants access. Trial,
   temporary grant and scheduled boundaries retain their existing semantics.
 - **Must preserve—enforced:** Basic uses the existing operational records and
   anniversary fee rules. Downgrades do not delete balances, waived amounts,

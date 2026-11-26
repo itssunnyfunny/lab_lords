@@ -13,13 +13,13 @@ type Row = { id: string; createdAt: string; currency: string; amountSubunits: nu
 type Page = { items: Row[]; nextCursor: string | null };
 const sources: Record<string, string> = { CHECKOUT: "Checkout", VERIFICATION: "Provider verification", WEBHOOK: "Provider update", CUSTOMER_CANCELLATION: "Cancellation request", SYSTEM: "System update" };
 
-export function BillingHistoryBrowser({ organizationId, branchId }: { organizationId: string; branchId?: string }) {
+export function BillingHistoryBrowser({ organizationId, branchId }: { organizationId: string; branchId: string }) {
     const t = useTranslation(); const [open, setOpen] = useState(false);
     const { ownerKey } = useUserPreferences();
     return <><AppButton density="compact" variant="secondary" onClick={() => setOpen(true)}>{t("View all invoices and history")}</AppButton>
         {open && <BillingHistoryDialog key={`${ownerKey}:${organizationId}:${branchId ?? ""}`} branchId={branchId} organizationId={organizationId} onClose={() => setOpen(false)} />}</>;
 }
-function BillingHistoryDialog({ organizationId, branchId, onClose }: { organizationId: string; branchId?: string; onClose: () => void }) {
+function BillingHistoryDialog({ organizationId, branchId, onClose }: { organizationId: string; branchId: string; onClose: () => void }) {
     const t = useTranslation(); const { formatDateTime, formatNumber } = useUserPreferences();
     const [kind, setKind] = useState("invoices");
     const [cursor, setCursor] = useState<string | null>(null);

@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { AttendanceService as S } from "@/services/attendance.service";
 import { attendanceDay, type AttendanceCommand } from "@/lib/attendance";
@@ -120,9 +120,22 @@ describe("Attendance — isolated PostgreSQL", () => {
         const staff = await createUser(); const membership = await createStaff({ userId: staff.id, branchId: f.branch.id });
         await db.staffPermissionOverride.create({ data: { staffId: membership.id, action: "STUDENTS", allowed: false } });
         await expect(S.list(staff.id, f.branch.id, {})).rejects.toThrow(/Unauthorized/);
-        await db.branch.update({ where: { id: f.branch.id }, data: { billingStatus: "ARCHIVED" } });
-        await expect(command(f, checkIn(f))).rejects.toThrow();
+        await db.branch.update({ where: { id: f.branch.id }, data: { billingStatus: "REMOVAL_SCHEDULED" } });
+        await expect(command(f, checkIn(f))).rejects.toMatchObject({ code: "BILLING_READ_ONLY" });
         expect((await S.list(f.user.id, f.branch.id, {})).total).toBe(1);
+        await db.branch.update({ where: { id: f.branch.id }, data: { billingStatus: "ARCHIVED" } });
+        await expect(command(f, checkIn(f))).rejects.toMatchObject({ code: "BILLING_READ_ONLY" });
+        expect((await S.list(f.user.id, f.branch.id, {})).total).toBe(1);
+        await expect(S.list(foreign.user.id, f.branch.id, {})).rejects.toMatchObject({ code: "BRANCH_NOT_FOUND" });
+        const subscription = await db.organizationSubscription.findUniqueOrThrow({ where: { currentAgreementBranchId: f.branch.id } });
+        vi.useFakeTimers({ toFake: ["Date"] });
+        try {
+            vi.setSystemTime(subscription.paidThrough!);
+            await expect(S.list(f.user.id, f.branch.id, {})).rejects.toMatchObject({ code: "BILLING_READ_ONLY" });
+        } finally {
+            vi.useRealTimers();
+        }
+        expect(await db.attendanceCredential.count({ where: { branchId: f.branch.id, studentId: f.student.id } })).toBe(1);
     });
     it("uses students alone for normal work and manage_branch for corrections; no financial leaks", async () => {
         const f = await fixture(), staff = await createUser(), membership = await createStaff({ userId: staff.id, branchId: f.branch.id, role: "STAFF" });

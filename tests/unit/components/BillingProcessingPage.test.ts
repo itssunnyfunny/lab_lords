@@ -34,6 +34,35 @@ function gate(): ProcessingReconcileGate {
 }
 
 describe("billing processing reconciliation", () => {
+  it("offers an overdue recovery only when the server still allows payment on that mandate", () => {
+    const pending = { ...operation("AWAITING_PROVIDER_CONFIRMATION"), confirmationDeadlineAt: "2026-08-07T10:15:00Z" };
+    expect(getBillingProcessingCopy(pending, true).title).toBe("Confirmation is taking longer than usual");
+    expect(getBillingProcessingCopy({ ...pending, canResumePaymentRecovery: true }, true).title).toBe("Payment recovery");
+    expect(getBillingProcessingCopy({ ...pending, canResumePaymentRecovery: true }, true, true).body).toContain("Try again shortly");
+    expect(getBillingProcessingCopy({ ...operation("FAILED"), canResumePaymentRecovery: false }, true).title).toBe("Payment recovery ended");
+    expect(getBillingProcessingCopy({ ...operation("APPLIED"), canResumePaymentRecovery: false }, true, true).title).toBe("Billing update confirmed");
+  });
+  it.each(["SCHEDULED", "FAILED"] as const)("treats a held %s source cancellation as recoverable and orders later evidence", status => {
+    const prior = operation("SCHEDULED");
+    const held = { ...operation(status), failureCategory: "MANUAL_REVIEW_REQUIRED",
+      failureCode: "SOURCE_CANCELLATION_OUTCOME_UNKNOWN", updatedAt: "2026-08-07T11:00:00.000Z" };
+    const resolved = { ...prior, updatedAt: "2026-08-07T12:00:00.000Z" };
+    expect(getBillingProcessingCopy(held, false).title).toBe("Checking the previous subscription");
+    expect(preferProviderConfirmedOperation(prior, held)).toBe(held);
+    expect(preferProviderConfirmedOperation(held, prior)).toBe(held);
+    expect(preferProviderConfirmedOperation(held, resolved)).toBe(resolved);
+    expect(preferProviderConfirmedOperation(resolved, held)).toBe(resolved);
+  });
+  it("keeps a payment review actionable until the original receipt gains confirmed evidence", () => {
+    const stale = operation("AWAITING_PROVIDER_CONFIRMATION");
+    const held = { ...operation("FAILED"), canResumePaymentRecovery: false, requiresPaymentRecoveryReview: true as const,
+      failureCategory: "MANUAL_REVIEW_REQUIRED", updatedAt: "2026-08-07T11:00:00.000Z" };
+    const resolved = { ...operation("APPLIED"), updatedAt: "2026-08-07T12:00:00.000Z" };
+    expect(getBillingProcessingCopy(held, true, true).title).toBe("Payment confirmation requires review");
+    expect(preferProviderConfirmedOperation(held, stale)).toBe(held);
+    expect(preferProviderConfirmedOperation(held, resolved)).toBe(resolved);
+    expect(preferProviderConfirmedOperation(resolved, held)).toBe(resolved);
+  });
   it("keeps provider-confirmed success when a stale failure arrives later", () => {
     const applied = operation("APPLIED");
     const failed = operation("FAILED");

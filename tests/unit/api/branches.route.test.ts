@@ -57,6 +57,7 @@ describe("POST /api/branches", () => {
 
     const response = await POST(request({
       organizationId: "org_1",
+      futurePlan: "STANDARD",
       name: "Second Branch",
       seatCount: 10,
     }));
@@ -75,6 +76,7 @@ describe("POST /api/branches", () => {
 
     const response = await POST(request({
       organizationId: "org_1",
+      futurePlan: "STANDARD",
       name: "Second Branch",
       contactPhone: "9876543210",
       city: "Delhi",
@@ -87,6 +89,7 @@ describe("POST /api/branches", () => {
     expect(mocks.createBranchForOrg).toHaveBeenCalledWith({
       organizationId: "org_1",
       userId: "owner_1",
+      futurePlan: "STANDARD",
       name: "Second Branch",
       contactPhone: "+91 98765 43210",
       city: "Delhi",
@@ -105,6 +108,7 @@ describe("POST /api/branches", () => {
 
     const response = await POST(request({
       organizationId: "org_1",
+      futurePlan: "STANDARD",
       name: "Second Branch",
       contactPhone: "9876543210",
       seatCount: 10,
@@ -124,6 +128,7 @@ describe("POST /api/branches", () => {
     expect((await POST(request({ ...input, futurePlan: "PRO" }))).status).toBe(202);
     expect(mocks.createBranchForOrg).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "org_1", futurePlan: "PRO" }));
     expect((await POST(request({ ...input, futurePlan: "UNKNOWN" }))).status).toBe(400);
+    expect((await POST(request(input))).status).toBe(400);
     expect(mocks.createBranchForOrg).toHaveBeenCalledTimes(1);
   });
 
@@ -142,6 +147,7 @@ describe("POST /api/branches", () => {
     };
     const response = await POST(request({
       organizationId: "org_1",
+      futurePlan: "STANDARD",
       name: "Second Branch",
       contactPhone: "9876543210",
       seatCount: 3,

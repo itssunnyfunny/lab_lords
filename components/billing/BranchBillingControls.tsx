@@ -11,9 +11,8 @@ import { useUserPreferences } from "@/components/settings/UserPreferencesApplier
 type RemovalResult = { action?: "NONE" | "PROCESSING" | "CHECKOUT_REQUIRED"; change?: { id: string; effectiveAt: string | null } };
 
 /** The server owns effective dates, provider actions, replay and undo eligibility. */
-export function BranchBillingControls({ organizationId, branchId, branchName, billingStatus, canChange, finalBranch, independent, returnTo, onChanged }: {
+export function BranchBillingControls({ organizationId, branchId, branchName, billingStatus, canChange, finalBranch, returnTo, onChanged }: {
     organizationId: string; branchId: string; branchName: string; billingStatus: string; canChange: boolean; finalBranch: boolean;
-    independent?: boolean;
     returnTo?: string | null;
     onChanged: (status?: string) => void;
 }) {
@@ -63,7 +62,7 @@ export function BranchBillingControls({ organizationId, branchId, branchName, bi
         } catch (failure) { setError(failure instanceof Error ? failure.message : "Unable to confirm the branch billing change. Retry the same request."); }
         finally { inFlight.current = false; setBusy(false); }
     }
-    if (independent && (billingStatus === "ARCHIVED" || billingStatus === "PENDING_ACTIVATION")) {
+    if (billingStatus === "ARCHIVED" || billingStatus === "PENDING_ACTIVATION") {
         return <InactiveBranchControls key={billingStatus} branchId={branchId} branchName={branchName} archived={billingStatus === "ARCHIVED"} finalBranch={finalBranch} onChanged={() => onChanged()} />;
     }
     return <div className="space-y-2 border-t border-[color:var(--ui-panel-border)] p-3">

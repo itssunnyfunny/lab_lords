@@ -1,3 +1,4 @@
+import { publicBillingPlans } from "../../lib/billingPlans";
 import type { Page, Route } from "@playwright/test";
 
 /** Synthetic responses for the real Settings pages. The Vite harness blocks all unhandled APIs. */
@@ -34,19 +35,21 @@ export async function installSettingsRouteFixture(page: Page) {
     };
     const experience = {
         organizationId: "org-pilot", accessMode: "FULL", effectivePlan: "STANDARD", selectedPostTrialPlan: "STANDARD",
-        providerStatus: "active", customerState: "STANDARD_ACTIVE", customerMessage: "Standard workspace is active.",
+        independentBilling: true, billingAccessSource: "PAID", monthlyCommitmentSubunits: 29_900,
+        planChangeEffectiveAt: "2027-01-22T00:00:00Z", planChangeUndoCutoffAt: "2027-01-20T00:00:00Z",
+        providerStatus: "ACTIVE", customerState: "STANDARD_ACTIVE", customerMessage: "Standard workspace is active.",
         trialEndsAt: null, trialDaysRemaining: null, paidThrough: "2026-10-22T00:00:00.000Z",
-        confirmedQuantity: 1, projectedQuantity: 1, currentUnitAmount: 499, currentMonthlyTotal: 499,
-        projectedUnitAmount: 499, projectedMonthlyTotal: 499, authorizationStatus: "AUTHORIZED",
+        confirmedQuantity: 1, projectedQuantity: 1, currentUnitAmount: 299, currentMonthlyTotal: 299,
+        projectedUnitAmount: 299, projectedMonthlyTotal: 299, authorizationStatus: "AUTHORIZED",
         planFeeDueToday: 0, nextChargeAt: "2026-10-22T00:00:00.000Z", paymentAction: "NONE",
-        entitlements: ["STAFF_MANAGEMENT", "ORG_ANALYTICS"], latestOperation: null, activeOperation: null,
-        scheduledChanges: [], branch: null, viewer: { isOwner: true, canManageBilling: true }, hasActiveOperation: false,
+        entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS"], latestOperation: null, activeOperation: null,
+        scheduledChanges: [], branch: { id: branch.id, name: branch.name, billingStatus: "ACTIVE" }, viewer: { isOwner: true, canManageBilling: true }, hasActiveOperation: false,
     };
     const current = {
         id: "subscription-pilot", organizationId: "org-pilot", position: "CURRENT", replacesSubscriptionId: null,
-        plan: "PRO", planName: "Standard", shortName: "Standard", amount: 499, amountSubunits: 49900,
-        currency: "INR", period: "monthly", interval: 1, totalCount: 120, quantity: 1, unitAmount: 499,
-        monthlyTotal: 499, status: "ACTIVE", razorpaySubscriptionId: "synthetic-subscription",
+        plan: "STANDARD", planName: "Standard", shortName: "Standard", amount: 299, amountSubunits: 29900,
+        currency: "INR", period: "monthly", interval: 1, totalCount: 120, quantity: 1, unitAmount: 299,
+        monthlyTotal: 299, status: "ACTIVE", razorpaySubscriptionId: "synthetic-subscription",
         currentStart: "2026-09-22T00:00:00.000Z", currentEnd: "2026-10-22T00:00:00.000Z",
         chargeAt: "2026-10-22T00:00:00.000Z", endedAt: null, providerStartAt: null,
         authorizationExpiresAt: null, providerPaymentMethod: "CARD", paidThrough: "2026-10-22T00:00:00.000Z",
@@ -55,13 +58,10 @@ export async function installSettingsRouteFixture(page: Page) {
     };
     const billingOverview = {
         experience, razorpayTestMode: true, multiMethodSubscriptionsEnabled: false,
-        plans: [
-            { id: "BASIC", name: "Basic", shortName: "Basic", amount: 299, currency: "INR", period: "monthly", interval: 1, active: true, featured: false, comingSoon: false, custom: false, description: "Essentials for one study space.", capabilities: [], entitlements: [], limits: { maxBranches: 1 } },
-            { id: "PRO", name: "Standard", shortName: "Standard", amount: 499, currency: "INR", period: "monthly", interval: 1, active: true, featured: true, comingSoon: false, custom: false, description: "The complete workspace toolkit.", capabilities: [], entitlements: [], limits: { maxBranches: null } },
-        ],
+        plans: publicBillingPlans(),
         current, pendingReplacement: null, history: [],
-        entitlements: { organizationId: "org-pilot", plan: "PRO", effectivePlan: "PRO", subscriptionStatus: "ACTIVE", fallbackAccess: false, entitlements: ["STAFF_MANAGEMENT"], limits: { maxBranches: null }, usage: { branches: 1 }, accessMode: "FULL", canWrite: true, accessReason: "" },
-        billingModelVersion: "WORKSPACE_V2", trial: null, ownerTrialEligibility: { status: "USED", claimable: false, boundOrganizationId: "org-pilot" },
+        entitlements: { organizationId: "org-pilot", plan: "STANDARD", effectivePlan: "STANDARD", subscriptionStatus: "ACTIVE", fallbackAccess: false, entitlements: ["STAFF_MANAGEMENT"], limits: { maxBranches: null }, usage: { branches: 1 }, accessMode: "FULL", canWrite: true, accessReason: "" },
+        billingModelVersion: "BRANCH_V3", trial: null, ownerTrialEligibility: { status: "USED", claimable: false, boundOrganizationId: "org-pilot" },
         paymentMethod: "CARD", invoices: [], scheduledChanges: [],
     };
     const operation = {
@@ -96,8 +96,8 @@ export async function installSettingsRouteFixture(page: Page) {
         accessMode: "FULL", billingUrl: "/org/org-pilot/settings#billing",
     } }));
     await page.route("**/api/organizations/org-pilot", route => reply(route, () => org, body => { Object.assign(org, body); }));
-    await page.route("**/api/organizations/org-pilot/billing", route => route.fulfill({ json: billingOverview }));
-    await page.route("**/api/organizations/org-pilot/billing/mutations/change-pilot", route => route.fulfill({ json: {
+    await page.route("**/api/organizations/org-pilot/billing?branchId=pilot", route => route.fulfill({ json: billingOverview }));
+    await page.route("**/api/organizations/org-pilot/billing/mutations/change-pilot?branchId=pilot", route => route.fulfill({ json: {
         operation: new URL(page.url()).searchParams.get("outcome") === "declined"
             ? { ...operation, operationStatus: "DECLINED", message: "The provider did not confirm authorization." }
             : operation,

@@ -4,6 +4,7 @@ import { createBranch, createOrg, createStudent, createUser } from "@/tests/fact
 import { PaymentService } from "@/services/payment.service";
 import { BranchService } from "@/services/branch.service";
 import { RenewalsService } from "@/services/renewals.service";
+import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
 
@@ -28,7 +29,7 @@ async function scheduledBranchRemoval() {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(date(4, 1));
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
     const branch = await createBranch({ organizationId: organization.id });
     await createBranch({ organizationId: organization.id });
     const closure = date(5, 10);
@@ -66,13 +67,13 @@ async function waitForBranchLock() {
 describe("system-owned monthly fee generation and branch closures", () => {
     it("generates only for active students in operating branches without granting staff writes or SaaS access", async () => {
         const owner = await createUser();
-        const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+        const organization = await createOrg({ ownerId: owner.id });
         const branch = await createBranch({ organizationId: organization.id });
         const student = await createStudent({ branchId: branch.id, joinedAt: new Date("2026-01-31T00:00:00Z"), monthlyFee: 1100 });
         const inactive = await createStudent({ branchId: branch.id, joinedAt: student.joinedAt, monthlyFee: 1100 });
         await testPrisma.student.update({ where: { id: inactive.id }, data: { status: "INACTIVE" } });
         const foreignOwner = await createUser();
-        const foreignOrganization = await createOrg({ ownerId: foreignOwner.id, billingModelVersion: "WORKSPACE_V2" });
+        const foreignOrganization = await createOrg({ ownerId: foreignOwner.id });
         const pendingBranch = await createBranch({ organizationId: foreignOrganization.id });
         const archivedBranch = await createBranch({ organizationId: foreignOrganization.id });
         await testPrisma.branch.update({ where: { id: pendingBranch.id }, data: { billingStatus: "PENDING_ACTIVATION" } });
@@ -139,6 +140,10 @@ describe("system-owned monthly fee generation and branch closures", () => {
         const query = { filter: "ALL" as const, days: 7 as const, limit: 20, search: "" };
 
         const before = await RenewalsService.list(owner.id, branch.id, query, date(5, 8));
+        const access = await AccessPolicy.branchProjection(owner.id, branch.id);
+        expect(access).toMatchObject({effectivePlan: "STANDARD", canWrite: false, entitlements: []});
+        await expect(AccessPolicy.authorizeCapability(owner.id, branch.id, "paymentsRecord")).rejects.toMatchObject({code: "BILLING_READ_ONLY"});
+        await expect(RenewalsService.list((await createUser()).id, branch.id, query)).rejects.toMatchObject({code: "BRANCH_NOT_FOUND"});
         expect(before.items.filter(row => row.expected).map(row => row.studentId)).toEqual([dueBefore.id]);
         expect(before.items).toContainEqual(expect.objectContaining({ studentId: student.id, dueDate: date(4, 10).toISOString(), expected: false }));
         const closed = await RenewalsService.list(owner.id, branch.id, query, closure);

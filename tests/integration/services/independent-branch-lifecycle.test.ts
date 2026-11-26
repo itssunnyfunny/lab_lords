@@ -13,8 +13,6 @@ afterEach(() => vi.unstubAllEnvs());
 afterAll(disconnectDatabase);
 
 it("enrolls the first branch once, keeping its selected Pro owner trial distinct from its future Basic plan", async () => {
-    vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "true");
-    vi.stubEnv("BRANCH_BILLING_V3_ONBOARDING_ENABLED", "true");
     const owner = await createUser();
     const input = { userId: owner.id, idempotencyKey: randomUUID(), ownerPhone: "9876543210",
         selectedPostTrialPlan: "BASIC" as const, trialPlan: "PRO" as const,
@@ -34,11 +32,8 @@ it("enrolls the first branch once, keeping its selected Pro owner trial distinct
 it("claims an available migrated trial once for never-billed branches after pending checkouts resolve", async () => {
     const owner = await createUser();
     const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
-    const branch = await createBranch({ organizationId: org.id, billingStatus: "PENDING_ACTIVATION" });
-    const archived = await createBranch({ organizationId: org.id, billingStatus: "ARCHIVED" });
-    for (const row of [branch, archived]) {
-        await db.branchBillingAgreement.create({ data: { organizationId: org.id, branchId: row.id, selectedPlan: "PRO" } });
-    }
+    const branch = await createBranch({ organizationId: org.id, billingStatus: "PENDING_ACTIVATION", selectedPlan: "PRO" });
+    const archived = await createBranch({ organizationId: org.id, billingStatus: "ARCHIVED", selectedPlan: "PRO" });
     await db.ownerTrialGrant.create({ data: { ownerId: owner.id, source: "MIGRATION", status: "AVAILABLE", trialPlan: "BASIC" } });
     await db.branchBillingAgreement.update({ where: { branchId: branch.id }, data: { billingMutationLeaseToken: "mock-checkout" } });
     await expect(OwnerTrialService.claimMigratedTrial(owner.id, org.id)).rejects.toThrow("pending branch checkout");
@@ -58,9 +53,8 @@ it("pairs paid branch removal with its exact cancellation and keeps reopening se
     const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
     const branches = [];
     for (const plan of ["STANDARD", "PRO"] as const) {
-        const branch = await createBranch({ organizationId: org.id });
+        const branch = await createBranch({ organizationId: org.id, selectedPlan: plan });
         const scope = { organizationId: org.id, branchId: branch.id };
-        await db.branchBillingAgreement.create({ data: { ...scope, selectedPlan: plan } });
         const source = await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan });
         branches.push({ branch, scope, source });
     }

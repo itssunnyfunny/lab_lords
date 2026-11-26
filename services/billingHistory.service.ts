@@ -12,7 +12,7 @@ export class BillingHistoryService {
         }
         const cursor = decodeDateIdCursor(value);
         // The unfiltered account history retains legacy aggregate invoices under their original owner.
-        const where = { organizationId, ...(branchId && org.billingModelVersion === "BRANCH_V3" ? { agreementBranchId: branchId } : {}), ...(cursor ? { OR: [
+        const where = { organizationId, ...(branchId ? { agreementBranchId: branchId } : {}), ...(cursor ? { OR: [
             { createdAt: { lt: cursor.sort } }, { createdAt: cursor.sort, id: { lt: cursor.id } },
         ] } : {}) };
         const orderBy = [{ createdAt: "desc" as const }, { id: "desc" as const }];

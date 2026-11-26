@@ -1,8 +1,11 @@
 "use client";
 
 import Script from "next/script";
+import type { BillingRetryResult } from "@/lib/api/billing";
 
 export type RazorpayCheckoutMode = "AUTHORIZATION" | "RECOVERY";
+
+export const RECOVERY_UNAVAILABLE_MESSAGE = "Razorpay has not offered a payment method for this recovery yet. Try again shortly.";
 
 export type RazorpayCheckoutEvent =
   | "ABANDONED"
@@ -240,6 +243,12 @@ export function getRazorpayCheckoutPayload(value: unknown): RazorpayCheckoutPayl
   if (!value || typeof value !== "object") return null;
   const checkout = (value as Record<string, unknown>).checkout;
   return isRazorpayCheckoutPayload(checkout) ? checkout : null;
+}
+
+export function openHostedPaymentRecovery(result: BillingRetryResult) {
+  if (!("purpose" in result) || result.purpose !== "RECOVERY" || !result.hostedRecoveryUrl) return false;
+  window.location.assign(result.hostedRecoveryUrl);
+  return true;
 }
 
 function browserRazorpayConstructor() {

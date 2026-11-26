@@ -8,5 +8,6 @@ export default async function ProcessingPage({ params, searchParams }: { params:
     if (!user) redirect("/sign-in");
     if (!(await OrganizationService.isOwner(orgId, user.id))) notFound();
     const { branchId, returnTo } = (await searchParams) ?? {};
-    return <BillingProcessingContent key={`${orgId}:${branchId ?? ""}:${changeId}`} branchId={branchId} returnTo={returnTo} orgId={orgId} changeId={changeId} />;
+    if (!branchId) notFound();
+    return <BillingProcessingContent key={`${orgId}:${branchId}:${changeId}`} branchId={branchId} returnTo={returnTo} orgId={orgId} changeId={changeId} />;
 }

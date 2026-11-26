@@ -77,7 +77,7 @@ model Organization {
   weekStartsOn                   Int                                 @default(1)
   paymentGraceDays               Int                                 @default(0)
   selectedPostTrialPlan          SaasPlan?
-  billingModelVersion            BillingModelVersion                 @default(LEGACY)
+  billingModelVersion            BillingModelVersion                 @default(BRANCH_V3)
   billingMutationSequence        Int                                 @default(0)
   billingMutationLeaseToken      String?
   billingMutationLeaseUntil      DateTime?

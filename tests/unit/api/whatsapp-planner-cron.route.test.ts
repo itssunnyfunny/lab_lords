@@ -66,15 +66,21 @@ describe("GET /api/cron/whatsapp/plan", () => {
     expect(mocks.run).toHaveBeenCalledTimes(1);
   });
 
-  it("schedules the planner every 15 minutes without replacing existing crons", () => {
-    const configuration = JSON.parse(readFileSync("vercel.json", "utf8")) as {
-      crons: Array<{ path: string; schedule: string }>;
-    };
-    expect(configuration.crons).toEqual(expect.arrayContaining([
-      { path: "/api/cron/payments/daily", schedule: "0 0 * * *" },
-      { path: "/api/cron/billing/hourly", schedule: "0 * * * *" },
-      { path: "/api/cron/imports/daily", schedule: "30 0 * * *" },
-      { path: "/api/cron/whatsapp/plan", schedule: "*/15 * * * *" },
-    ]));
+  it("registers each authenticated GET job once at its operating cadence", () => {
+    const configuration = JSON.parse(readFileSync("vercel.json", "utf8"));
+    expect(configuration.crons).toBeUndefined();
+    const routes = [
+      ["/api/cron/payments/daily", "0 0 * * *"],
+      ["/api/cron/billing/hourly", "0 * * * *"],
+      ["/api/cron/imports/daily", "30 0 * * *"],
+      ["/api/cron/whatsapp/plan", "*/15 * * * *"],
+      ["/api/cron/whatsapp/send", "*/5 * * * *"],
+      ["/api/cron/whatsapp/reports", "*/15 * * * *"],
+      ["/api/cron/whatsapp/health", "*/30 * * * *"],
+      ["/api/cron/whatsapp/maintenance", "0 2 * * *"],
+    ];
+    expect(Object.values(configuration.schedules)).toEqual(routes.map(([path, schedule]) => ({
+      path, schedule, requestMethod: "GET",
+    })));
   });
 });

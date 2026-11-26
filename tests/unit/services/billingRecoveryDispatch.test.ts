@@ -1,3 +1,4 @@
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
 import type { RazorpaySubscription } from "@/lib/razorpay";
@@ -187,6 +188,7 @@ function fixture() {
 }
 
 beforeEach(() => {
+  registerHistoricalBillingFixture("org_1");
   vi.stubEnv("RAZORPAY_MODE", "TEST");
   vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_recovery_fixture");
   vi.stubEnv("VERCEL_ENV", "development");

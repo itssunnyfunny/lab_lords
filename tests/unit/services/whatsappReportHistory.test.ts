@@ -36,7 +36,9 @@ beforeEach(() => {
     id: "branch_1", organizationId: "org_1", organization: { ownerId: "owner_1", timezone: "Asia/Kolkata" },
   });
   mocks.findMessages.mockResolvedValue([]);
-  vi.spyOn(EntitlementService, "getOrganizationFeatureScope").mockResolvedValue({entitled:true, canWrite:false, branches:null});
+  vi.spyOn(EntitlementService, "getOrganizationFeatureScope").mockResolvedValue({
+    entitled: true, canWrite: true, branches: { included: [{ id: "branch_1", name: "Pro branch" }], excluded: [] },
+  });
   vi.spyOn(EntitlementService, "assertBranchEntitlement").mockResolvedValue(profile);
   vi.spyOn(EntitlementService, "assertOrganizationWritable").mockResolvedValue(profile);
   vi.spyOn(EntitlementService, "assertBranchWritable").mockResolvedValue(profile);

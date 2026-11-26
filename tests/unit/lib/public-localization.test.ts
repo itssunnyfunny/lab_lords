@@ -8,6 +8,7 @@ import { publicUiKeys } from "@/lib/public-i18n/ui-keys";
 import { publicLocales, publicLanguageTags, translatedPublicPaths, policyPaths, retiredPublicPaths, publicRoute, publicHref, languageHref, publicAlternates } from "@/lib/public-i18n/routes";
 import { messagesFor, publicTranslator } from "@/lib/public-i18n/translate";
 import { publicFaqAnswer } from "@/lib/public-i18n/content";
+import { publicBranchBillingCopy } from "@/lib/publicBranchBillingCopy";
 import { publicFaqs } from "@/lib/publicFaqs";
 import { publicBillingPlans } from "@/lib/billingPlans";
 import { activeSoftwarePageSlugs, softwarePages } from "@/lib/softwarePages";
@@ -71,8 +72,14 @@ describe("public language contracts", () => {
     }
     expect(publicFaqAnswer(faq, publicTranslator())).toBe(faq.answer);
   });
-  it("requires public translations for dynamic billing capabilities and availability notes", () => {
-    const messages = new Set([...publicBillingPlans(), ...publicBillingPlans(true)].flatMap(plan => [
+  it("requires prepared translations for branch billing, dynamic capabilities and availability notes", () => {
+    for (const source of Object.values(publicBranchBillingCopy)) {
+      const translated = catalog[source];
+      expect(translated, source).toHaveLength(2);
+      expect(translated[0], source).toMatch(/\p{Script=Devanagari}/u);
+      expect(translated[1], source).not.toBe(source);
+    }
+    const messages = new Set(publicBillingPlans().flatMap(plan => [
       ...plan.capabilities.map(capability => capability.label),
       ...(plan.availabilityNote ? [plan.availabilityNote] : []),
     ]));

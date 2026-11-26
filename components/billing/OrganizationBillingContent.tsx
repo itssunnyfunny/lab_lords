@@ -2,7 +2,7 @@
 import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 import { hasActiveBillingTrial, projectedBillableStatuses } from "@/lib/billingState";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { AlertCircle, CheckCircle2, CreditCard, History, Loader2, Receipt, Sparkles, XCircle } from "lucide-react";
@@ -16,9 +16,9 @@ import { WorkspacePreviews } from "@/components/billing/WorkspacePreviews";
 import { workspaceDowngradeNotice } from "@/lib/workspacePresentation";
 import { CheckoutConfirmationDialog } from "@/components/billing/CheckoutConfirmationDialog";
 import { PaymentOutcomeDialog, type PaymentOutcome } from "@/components/billing/PaymentOutcomeDialog";
-import { getRazorpayCheckoutPayload, isRazorpayCheckoutPayload, isRazorpayCheckoutReady, openRazorpayCheckout, RazorpayCheckoutScript, type RazorpayCheckoutEventResult, type RazorpayCheckoutMode, type RazorpayCheckoutPayloadLike } from "@/components/billing/RazorpayCheckoutLauncher";
+import { getRazorpayCheckoutPayload, isRazorpayCheckoutPayload, isRazorpayCheckoutReady, openHostedPaymentRecovery, openRazorpayCheckout, RazorpayCheckoutScript, RECOVERY_UNAVAILABLE_MESSAGE, type RazorpayCheckoutEventResult, type RazorpayCheckoutMode, type RazorpayCheckoutPayloadLike } from "@/components/billing/RazorpayCheckoutLauncher";
 import { formErrorBannerClass, formSuccessBannerClass, formWarningBannerClass } from "@/components/ui/formSurface";
-import { billing as organizationBilling, billingForBranch, type BillingOverview, type BillingPlanDto, type OrganizationSubscriptionDto } from "@/lib/api/billing";
+import { billingForBranch, type BillingOverview, type BillingPlanDto, type OrganizationSubscriptionDto } from "@/lib/api/billing";
 import { branchAccessLabel, branchPlanLabel } from "@/lib/branchBillingLabels";
 import { billingPlanName, billingPlanRank, isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
 import { cn } from "@/lib/utils";
@@ -39,9 +39,9 @@ const BILLING_SECTIONS = [
 
 type BillingContact = { branches?: { id: string; name: string; billingStatus: string }[]; contactEmail: string | null; contactPhone: string | null; owner?: { email: string } };
 
-export function OrganizationBillingContent({ orgId, branchId, branchName, returnPath = accountBillingHref(orgId, branchId), context }: { orgId: string; branchId?: string; branchName?: string; returnPath?: string; context?: ReactNode }) {
+export function OrganizationBillingContent({ orgId, branchId, branchName, returnPath = accountBillingHref(orgId, branchId) }: { orgId: string; branchId: string; branchName?: string; returnPath?: string }) {
     const t = useTranslation();
-    const billing = useMemo(() => branchId ? billingForBranch(branchId) : organizationBilling, [branchId]);
+    const billing = useMemo(() => billingForBranch(branchId), [branchId]);
     const refreshExperience = useBillingExperience()?.refresh;
     const [activeSection, setActiveSection] = useState("billing");
     const [org, setOrg] = useState<BillingContact>({ contactEmail: null, contactPhone: null });
@@ -61,6 +61,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
     const billingOperationInFlightRef = useRef(false);
     const [recoveryLoading, setRecoveryLoading] = useState(false);
     const [recoveryConfirmationOpen, setRecoveryConfirmationOpen] = useState(false);
+    const [methodConfirmationOpen, setMethodConfirmationOpen] = useState(false);
     const [confirmationPlan, setConfirmationPlan] = useState<CheckoutBillingPlanId | null>(null);
     const [handledQueryPlan, setHandledQueryPlan] = useState<CheckoutBillingPlanId | null>(null);
     const [paymentOutcome, setPaymentOutcome] = useState<PaymentOutcome | null>(null);
@@ -86,12 +87,12 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
         try {
             const overview = await billing.getOverview(orgId);
             if (!mounted.current || version !== billingReadVersion.current) return;
-            if (branchId && (overview.experience.organizationId !== orgId || overview.experience.branch?.id !== branchId)) {
+            if (overview.experience.organizationId !== orgId || overview.experience.branch?.id !== branchId) {
                 setBillingOverview(null);
                 throw new Error("Branch billing details are unavailable. Refresh to try again.");
             }
             setBillingOverview(overview);
-            if (branchId) {
+            {
                 const { experience } = overview;
                 const signature = JSON.stringify([experience.customerState, experience.effectivePlan, experience.branch?.billingStatus,
                     experience.selectedPostTrialPlan, experience.paidThrough, experience.nextChargeAt, experience.monthlyCommitmentSubunits,
@@ -105,7 +106,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
             await refreshExperience?.();
         } catch (err) {
             if (!mounted.current || version !== billingReadVersion.current) return;
-            if (branchId) setBillingOverview(null);
+            setBillingOverview(null);
             setBillingNotice({
                 tone: "error",
                 message: err instanceof Error ? err.message : "Failed to load billing plans.",
@@ -121,7 +122,6 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
         return () => { mounted.current = false; billingReadVersion.current += 1; };
     }, [loadBilling]);
     useEffect(() => {
-        if (!branchId) return;
         const refresh = () => { if (document.visibilityState === "visible") void loadBilling(); };
         const interval = window.setInterval(refresh, 30_000);
         window.addEventListener("focus", refresh);
@@ -264,7 +264,8 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                 const result = await billing.changePlan(
                     orgId,
                     planId,
-                    returnPath + window.location.hash
+                    returnPath + window.location.hash,
+                    billingOverview?.experience.planChangeEffectiveAt
                 );
                 if (!mounted.current) return;
                 if ("purpose" in result && isRazorpayCheckoutPayload(result)) {
@@ -316,10 +317,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
             const recovery = await billing.createRecovery(orgId, returnPath + window.location.hash);
             if (!mounted.current) return;
             setRecoveryConfirmationOpen(false);
-            if ("hostedRecoveryUrl" in recovery && recovery.hostedRecoveryUrl) {
-                window.location.assign(recovery.hostedRecoveryUrl);
-                return;
-            }
+            if (openHostedPaymentRecovery(recovery)) return;
             if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
                 router.push(processingDestination(recovery.processingUrl));
                 return;
@@ -358,8 +356,10 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
         try {
             const checkout = await billing.changePaymentMethod(
                 orgId,
-                returnPath + window.location.hash
+                returnPath + window.location.hash,
+                billingOverview?.experience.planChangeEffectiveAt
             );
+            setMethodConfirmationOpen(false);
             if (!("purpose" in checkout) || !isRazorpayCheckoutPayload(checkout)) {
                 if (checkout.processingUrl) router.push(processingDestination(checkout.processingUrl));
                 else await loadBilling();
@@ -381,6 +381,13 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 
     const retryBillingOperation = useCallback(async (changeId: string, planId: CheckoutBillingPlanId | null = null) => {
         const result = await billing.retryOperation(orgId, changeId);
+        if (!mounted.current) return "REFRESHED" as const;
+        if (openHostedPaymentRecovery(result)) return "CHECKOUT" as const;
+        if ("recoveryUnavailable" in result && result.recoveryUnavailable) {
+            await loadBilling();
+            if (mounted.current) setBillingNotice({ tone: "warning", message: RECOVERY_UNAVAILABLE_MESSAGE });
+            return "REFRESHED" as const;
+        }
         const checkout = getRazorpayCheckoutPayload(result);
         if (checkout) {
             if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
@@ -400,7 +407,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 
     const retryPaymentOutcome = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
-        if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
+        if (paymentOutcomeMode !== "RECOVERY" && (!checkoutScriptReady || !isRazorpayCheckoutReady())) {
             setBillingNotice({ tone: "warning", message: "Razorpay Checkout is still loading. Please try again in a moment." });
             return;
         }
@@ -422,7 +429,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
         } finally {
             setRetryingOutcome(false);
         }
-    }, [checkoutScriptReady, outcomeChangeId, outcomePlanId, retryBillingOperation, setBillingOperationBusy]);
+    }, [checkoutScriptReady, outcomeChangeId, outcomePlanId, paymentOutcomeMode, retryBillingOperation, setBillingOperationBusy]);
 
     const confirmCancellation = useCallback(async () => {
         if (!cancelDialogOpen || billingOperationInFlightRef.current) return;
@@ -569,24 +576,26 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
         const operationId = experience.activeOperation?.id ?? experience.latestOperation?.id;
         setBillingOperationBusy(true);
         try {
+            if (experience.paymentAction === "RECONCILE_SOURCE_CANCELLATION" && experience.activeOperation) {
+                await billing.reconcileOperation(orgId, experience.activeOperation.id);
+                await loadBilling();
+                setBillingOperationBusy(false);
+                return;
+            }
             if (experience.paymentAction === "UPDATE_CARD") {
-                if (experience.providerStatus === "PAUSED") {
-                    setBillingOperationBusy(false);
-                    await startPaymentMethodChange();
-                    return;
-                }
                 setRecoveryConfirmationOpen(true);
                 setBillingOperationBusy(false);
                 return;
             }
-            if (experience.paymentAction === "WAIT_FOR_CONFIRMATION" && operationId) {
+            if ((experience.paymentAction === "WAIT_FOR_CONFIRMATION" || experience.paymentAction === "CHECK_PAYMENT_STATUS") && operationId) {
                 router.push(processingDestination(accountBillingProcessingHref(orgId, operationId)));
                 return;
             }
-            if ((experience.paymentAction === "CONTINUE_CHECKOUT"
+            if ((experience.paymentAction === "RESUME_PAYMENT_RECOVERY"
+                || experience.paymentAction === "CONTINUE_CHECKOUT"
                 || experience.paymentAction === "RETRY_AUTHORIZATION"
                 || experience.paymentAction === "RETRY_BILLING_CHANGE") && operationId) {
-                const checkoutRequired = experience.paymentAction !== "RETRY_BILLING_CHANGE";
+                const checkoutRequired = experience.paymentAction === "CONTINUE_CHECKOUT" || experience.paymentAction === "RETRY_AUTHORIZATION";
                 if (checkoutRequired && (!checkoutScriptReady || !isRazorpayCheckoutReady())) {
                     setBillingNotice({ tone: "warning", message: "Razorpay Checkout is still loading. Please try again in a moment." });
                     setBillingOperationBusy(false);
@@ -613,7 +622,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
             });
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, checkoutScriptReady, orgId, processingDestination, requestSubscription, retryBillingOperation, router, setBillingOperationBusy, startPaymentMethodChange]);
+    }, [billing, billingOverview, checkoutScriptReady, loadBilling, orgId, processingDestination, requestSubscription, retryBillingOperation, router, setBillingOperationBusy]);
 
     const confirmationPlanDetails = confirmationPlan
         ? billingOverview?.plans.find(plan => plan.id === confirmationPlan) ?? null
@@ -625,20 +634,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
     const addedFeatures = confirmationPlanDetails?.capabilities.filter(feature =>
         feature.included && feature.id !== "MULTIPLE_BRANCHES" && !currentFeatures.some(current => current.id === feature.id && current.included)
     ).map(feature => feature.label);
-    const confirmationUsesProviderUpdate = Boolean(
-        canChangeProviderPlan(billingOverview?.current ?? null)
-    );
     const confirmationUsesReplacement = requiresReplacementPlanChange(billingOverview?.current ?? null);
-    const confirmationChangeTiming = confirmationUsesReplacement
-        ? "AUTHORIZATION" as const
-        : !confirmationUsesProviderUpdate
-        ? "AUTHORIZATION" as const
-        : hasActiveBillingTrial(billingOverview?.experience)
-            ? "FUTURE_TRIAL" as const
-            : billingPlanRank(confirmationPlan) < billingPlanRank(billingOverview?.current?.plan)
-                ? "NEXT_CYCLE" as const
-                : "IMMEDIATE_PRORATION" as const;
-
     const checkoutMethodAvailability: BillingOverview["checkoutMethodAvailability"] = billingOverview?.checkoutMethodAvailability
         ?? (billingOverview?.multiMethodSubscriptionsEnabled
             ? {
@@ -666,6 +662,8 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
     const pendingReplacementCanUndo = Boolean(
         pendingReplacementChange
         && UNDOABLE_REPLACEMENT_STATUSES.has(pendingReplacementChange.status)
+        && pendingReplacementChange.failureCategory !== "MANUAL_REVIEW_REQUIRED"
+        && !billingOverview?.current?.cancelAtCycleEnd
         && (
             !pendingReplacementChange.undoCutoffAt
             || new Date(pendingReplacementChange.undoCutoffAt).getTime() > Date.now()
@@ -674,7 +672,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 
     return (
         <>
-            <RazorpayCheckoutScript
+            {billingOverview && billingOverview.experience.paymentAction !== "CHECK_PAYMENT_STATUS" && <RazorpayCheckoutScript
                 onReady={() => setCheckoutScriptReady(true)}
                 onError={() => {
                     setCheckoutScriptReady(false);
@@ -683,7 +681,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                         message: "Razorpay Checkout could not be loaded. Check your connection and refresh the page.",
                     });
                 }}
-            />
+            />}
             <SettingsWorkspace
                 title={t("Billing and plans")}
                 subtitle={branchName ?? t.owned("Subscription payments and access for your organization.")}
@@ -692,7 +690,6 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
             >
-                {context}
                 <SettingsPanel id="billing" title={t.owned("Current subscription")} icon={CreditCard}>
                     {billingNotice && (
                         <div role={billingNotice.tone === "error" ? "alert" : "status"} className={cn(
@@ -722,7 +719,10 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                     {billingOverview?.experience && (
                         <div className="mx-5 mt-4 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3 text-sm">
                             <p className="font-semibold text-[color:var(--text-primary)]">{t.owned(branchAccessLabel(billingOverview.experience.customerState))}</p>
-                            <p className="mt-1 text-[color:var(--text-secondary)]">{billingOverview.experience.customerMessage}</p>
+                            <p className="mt-1 text-[color:var(--text-secondary)]">{t.owned(billingOverview.experience.customerMessage)}</p>
+                            {billingOverview.experience.paymentAction === "RECONCILE_SOURCE_CANCELLATION" && (
+                                <p className="mt-1">{t.owned("Razorpay still needs to confirm cancellation of the previous subscription.")}</p>
+                            )}
                             {billingOverview.experience.paymentAction !== "NONE"
                                 && billingOverview.experience.paymentAction !== "CHOOSE_PLAN"
                                 && billingOverview.experience.paymentAction !== "AUTHORIZE_CARD" ? (
@@ -756,6 +756,9 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                                     </p>
                                     <p className="mt-1 text-xs text-[color:var(--text-secondary)]">
                                         {t("Until the change starts, charges and invoices follow your current subscription. Your paid-through date stays the same.")}</p>
+                                    {pendingReplacementChange?.undoCutoffAt && <p className="mt-1 text-xs">
+                                        {t.owned("Undo deadline")} · {format(new Date(pendingReplacementChange.undoCutoffAt), "PPpp")}
+                                    </p>}
                                     {complimentaryReplacementAccess ? (
                                         <p className="mt-2 font-medium text-[color:var(--ui-badge-success-text)]">
                                             {t("Complimentary upgrade access is active while billing remains on the current subscription.")}</p>
@@ -783,12 +786,13 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                                 billingOverview.current
                                 && isSupportedRecurringPaymentMethod(billingOverview.current.providerPaymentMethod)
                                 && isCheckoutBillingPlanId(billingOverview.current.plan)
-                                && checkoutMethodAvailability?.mode === "PROVIDER_MANAGED"
+                                && (billingOverview.current.status === "ACTIVE" || billingOverview.current.status === "AUTHENTICATED")
+                                && !billingOverview.current.cancelAtCycleEnd
                                 && !pendingReplacement
                             )}
                             changeDisabled={Boolean(billingOverview.experience.activeOperation)}
                             changeLoading={billingOperationLoading}
-                            onChangeMethod={() => void startPaymentMethodChange()}
+                            onChangeMethod={() => setMethodConfirmationOpen(true)}
                         />
                     ) : null}
 
@@ -800,7 +804,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                             <h3 id="billing-plans-title" className="mt-1 text-base font-semibold text-[color:var(--text-primary)]">
                                 {t("Choose the right workspace plan")}</h3>
                             <p className="mt-1 text-xs leading-5 text-[color:var(--text-secondary)]">
-                                {t.owned(branchId ? "The selected plan applies only to this branch. Review its charge date and amount before authorizing." : "Monthly billing is based on the selected plan and active branch count. You review the total before continuing to Razorpay.")}</p>
+                                {t.owned("The selected plan applies only to this branch. Review its charge date and amount before authorizing.")}</p>
                         </div>
                         {billingLoading ? (
                             <div className="flex min-h-28 items-center justify-center text-sm text-[color:var(--text-primary)]">
@@ -840,7 +844,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                                     {cancellationDate
                                         ? t("Cancellation is scheduled for {date}.", { date: format(new Date(cancellationDate), "PP") })
                                         : t("Cancellation is scheduled")}
-                                    <div className="mt-3"><AppButton variant="secondary" size="sm" disabled={billingOperationLoading} isLoading={billingOperationLoading} onClick={() => void undoCancellation()}>{t("Undo cancellation")}</AppButton></div>
+                                    {scheduledCancellation && canUndoScheduledChange(scheduledCancellation) && <div className="mt-3"><AppButton variant="secondary" size="sm" disabled={billingOperationLoading} isLoading={billingOperationLoading} onClick={() => void undoCancellation()}>{t("Undo cancellation")}</AppButton></div>}
                                 </div>
                             ) : cancellationMode ? (
                                 <div className="flex flex-wrap justify-end gap-2">
@@ -876,7 +880,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                                             {t.owned(formatBillingChangeType(change.type))} · {change.status === "SCHEDULED" ? t("Scheduled") : t("Awaiting confirmation")}
                                             {change.effectiveAt ? ` · ${format(new Date(change.effectiveAt), "PP")}` : ""}
                                         </span>
-                                        {(change.status === "SCHEDULED" || change.status === "FAILED" || change.status === "AWAITING_PROVIDER_CONFIRMATION") && (
+                                        {canUndoScheduledChange(change) && (
                                             <AppButton variant="secondary" size="sm" disabled={billingOperationLoading} onClick={() => void undoBillingChange(change.id)}>
                                                 {t("Undo")}</AppButton>
                                         )}
@@ -887,11 +891,11 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                     )}
 
                 </SettingsPanel>
-                <SettingsPanel id="branches" title={t.owned("Branch billing")} description={branchId ? branchName : t.owned("Manage which branches are included in this organization subscription.")} icon={CreditCard}>
+                <SettingsPanel id="branches" title={t.owned("Branch billing")} description={branchName} icon={CreditCard}>
                     <div className="space-y-3 p-4">
-                        {org.branches?.filter(branch => !branchId || branch.id === branchId).map(branch => <div key={branch.id} className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]" data-selected-branch={searchParams.get("branchId") === branch.id || undefined}>
+                        {org.branches?.filter(branch => branch.id === branchId).map(branch => <div key={branch.id} className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]" data-selected-branch={searchParams.get("branchId") === branch.id || undefined}>
                             <h3 className="px-3 py-3 text-sm font-semibold">{branch.name}{searchParams.get("branchId") === branch.id && <span className="ml-2 text-xs font-normal text-[color:var(--text-muted)]">{t.owned("Selected branch")}</span>}</h3>
-                            <BranchBillingControls independent={!!branchId} organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus}
+                            <BranchBillingControls organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus}
                                 returnTo={searchParams.get("returnTo")}
                                 canChange={Boolean(billingOverview?.entitlements.canWrite) && !billingOperationLoading}
                                 finalBranch={projectedBranchCount <= 1}
@@ -935,21 +939,21 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
             {confirmationPlanDetails && billingOverview ? (
                 <CheckoutConfirmationDialog
                     branchName={branchName}
-                    currentPlanName={billingOverview.current ? billingPlanName(billingOverview.current.plan) : branchName ? branchPlanLabel(billingOverview.experience.effectivePlan) : undefined}
+                    currentPlanName={billingOverview.current ? billingPlanName(billingOverview.current.plan) : branchPlanLabel(billingOverview.experience.effectivePlan)}
                     isOpen={confirmationPlan != null}
                     loading={billingAction === confirmationPlanDetails.id}
                     purpose={confirmationUsesReplacement ? "REPLACEMENT" : "PLAN"}
                     planName={confirmationPlanDetails.shortName}
-                    addedFeatures={branchId ? addedFeatures : undefined}
+                    undoCutoffAt={confirmationUsesReplacement ? billingOverview.experience.planChangeUndoCutoffAt : null}
+                    addedFeatures={addedFeatures}
                     downgradeNotice={workspaceDowngradeNotice(billingOverview.experience.effectivePlan, confirmationPlanDetails.id)}
                     {...getPlanConfirmationQuote(confirmationPlanDetails, billingOverview.experience, confirmationUsesReplacement)}
-                    changeTiming={confirmationChangeTiming}
+                    changeTiming="AUTHORIZATION"
                     trialEndsAt={billingOverview.experience.trialEndsAt}
                     existingCoverageEndsAt={billingOverview.experience.legacyCoverageEndsAt}
                     providerChargeAt={billingOverview.experience.nextChargeAt}
-                    effectiveAt={confirmationUsesReplacement ? billingOverview.experience.planChangeEffectiveAt ?? null : confirmationChangeTiming === "NEXT_CYCLE"
-                        ? billingOverview.current?.currentEnd ?? billingOverview.experience.paidThrough
-                        : null}
+                    priorBoundary={billingOverview.experience.planChangePriorBoundary}
+                    effectiveAt={confirmationUsesReplacement ? billingOverview.experience.planChangeEffectiveAt ?? null : null}
                     contactEmail={org.contactEmail || org.owner?.email}
                     contactPhone={org.contactPhone}
                     testMode={billingOverview.razorpayTestMode}
@@ -969,25 +973,27 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                 <CheckoutConfirmationDialog
                     branchName={branchName}
                     currentPlanName={billingOverview.current ? billingPlanName(billingOverview.current.plan) : undefined}
-                    isOpen={recoveryConfirmationOpen}
-                    loading={recoveryLoading}
-                    purpose="RECOVERY"
+                    isOpen={recoveryConfirmationOpen || methodConfirmationOpen}
+                    loading={methodConfirmationOpen ? billingOperationLoading : recoveryLoading}
+                    purpose={methodConfirmationOpen ? "REPLACEMENT" : "RECOVERY"}
                     planName={billingPlanName(billingOverview.current.plan)}
                     unitAmount={billingOverview.current.unitAmount}
                     quantity={billingOverview.current.quantity}
-                    monthlyTotal={branchId ? billingOverview.experience.monthlyCommitmentSubunits == null ? null : billingOverview.experience.monthlyCommitmentSubunits / 100 : billingOverview.current.monthlyTotal}
+                    monthlyTotal={billingOverview.experience.monthlyCommitmentSubunits == null ? null : billingOverview.experience.monthlyCommitmentSubunits / 100}
                     trialActive={false}
                     changeTiming="AUTHORIZATION"
                     trialEndsAt={null}
                     providerChargeAt={billingOverview.experience.nextChargeAt}
-                    effectiveAt={null}
-                    planFeeDueToday={billingOverview.current.monthlyTotal}
+                    priorBoundary={billingOverview.experience.planChangePriorBoundary}
+                    effectiveAt={methodConfirmationOpen ? billingOverview.experience.planChangeEffectiveAt ?? null : null}
+                    undoCutoffAt={methodConfirmationOpen ? billingOverview.experience.planChangeUndoCutoffAt : null}
+                    planFeeDueToday={methodConfirmationOpen ? 0 : billingOverview.current.monthlyTotal}
                     contactEmail={org.contactEmail || org.owner?.email}
                     contactPhone={org.contactPhone}
                     testMode={billingOverview.razorpayTestMode}
                     multiMethodEnabled={checkoutMethodAvailability?.mode === "PROVIDER_MANAGED"}
-                    onClose={() => setRecoveryConfirmationOpen(false)}
-                    onConfirm={startRecovery}
+                    onClose={() => { setMethodConfirmationOpen(false); setRecoveryConfirmationOpen(false); }}
+                    onConfirm={methodConfirmationOpen ? startPaymentMethodChange : startRecovery}
                 />
             ) : null}
             <ConfirmDialog
@@ -1007,7 +1013,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 }
 const TERMINAL_BILLING_STATUSES = new Set(["CANCELLED", "COMPLETED", "EXPIRED"]);
 const PROVIDER_PLAN_UPDATE_STATUSES = new Set(["AUTHENTICATED", "ACTIVE"]);
-const RECOVERY_BILLING_STATUSES = new Set(["PENDING", "HALTED"]);
+const RECOVERY_BILLING_STATUSES = new Set(["PENDING", "HALTED", "PAUSED"]);
 const PENDING_REPLACEMENT_CHANGE_TYPES = new Set([
     "PAYMENT_METHOD_REPLACEMENT",
     "PLAN_UPGRADE",
@@ -1019,18 +1025,23 @@ const PENDING_REPLACEMENT_CHANGE_TYPES = new Set([
 ]);
 const UNDOABLE_REPLACEMENT_STATUSES = new Set([
     "QUEUED",
-    "PROCESSING",
     "AWAITING_PAYMENT",
     "SCHEDULED",
     "FAILED",
 ]);
+
+function canUndoScheduledChange(change: BillingOverview["experience"]["scheduledChanges"][number]) {
+    return change.status === "SCHEDULED" && change.canUndo !== false
+        && change.failureCategory !== "MANUAL_REVIEW_REQUIRED"
+        && (!change.undoCutoffAt || Date.parse(change.undoCutoffAt) > Date.now());
+}
 
 /** Mirror the existing service's paid-cycle or active owner-trial cancellation boundary. */
 export function getSubscriptionCancellationMode(overview: BillingOverview | null, now = Date.now()): "PAID" | "TRIAL" | null {
     const current = overview?.current;
     if (!current) return null;
     if (current.status === "ACTIVE") return "PAID";
-    if ((overview?.billingModelVersion === "WORKSPACE_V2" || overview?.billingModelVersion === "BRANCH_V3") && current.status === "AUTHENTICATED"
+    if (current.status === "AUTHENTICATED"
         && overview.trial?.status === "ACTIVE" && overview.trial.endsAt
         && Date.parse(overview.trial.endsAt) > now) return "TRIAL";
     return null;
@@ -1084,9 +1095,12 @@ function formatBillingAction(action: BillingOverview["experience"]["paymentActio
         NONE: "Manage billing",
         CHOOSE_PLAN: "Choose plan",
         CONTINUE_CHECKOUT: "Continue authorization",
+        RESUME_PAYMENT_RECOVERY: "Resume payment recovery",
+        CHECK_PAYMENT_STATUS: "Check payment status",
         WAIT_FOR_CONFIRMATION: "View confirmation",
         RETRY_AUTHORIZATION: "Retry authorization",
         RETRY_BILLING_CHANGE: "Retry billing change",
+        RECONCILE_SOURCE_CANCELLATION: "Check cancellation status",
         UPDATE_CARD: "Update payment method and retry",
         AUTHORIZE_CARD: "Authorize payment method",
     };
@@ -1119,8 +1133,8 @@ function formatPlanAmount(plan: BillingPlanDto) {
 
 export function getPlanConfirmationQuote(plan: BillingPlanDto, experience: BillingOverview["experience"], replacement: boolean) {
     const unitAmount = plan.amount ?? 0;
-    const quantity = experience.projectedQuantity;
-    const monthlyTotal = unitAmount * quantity;
+    const quantity = 1;
+    const monthlyTotal = unitAmount;
     const trialActive = hasActiveBillingTrial(experience);
     return { unitAmount, quantity, monthlyTotal, trialActive, planFeeDueToday: trialActive || replacement || experience.legacyCoverageEndsAt ? 0 : monthlyTotal };
 }
@@ -1210,7 +1224,7 @@ export function BillingPlanCard({
     } else if (providerUpdate && billingPlanRank(plan.id) > billingPlanRank(current?.plan)) {
         buttonLabel = `Upgrade to ${plan.shortName}`;
     } else if (providerUpdate && billingPlanRank(plan.id) < billingPlanRank(current?.plan)) {
-        buttonLabel = experience?.independentBilling ? `Change to ${plan.shortName}` : `Change to ${plan.shortName} at renewal`;
+        buttonLabel = `Change to ${plan.shortName}`;
     } else if (providerUpdate) buttonLabel = `Change to ${plan.shortName}`;
 
     return (
@@ -1265,7 +1279,7 @@ export function BillingPlanCard({
                         ) : (
                             <XCircle size={15} className="mt-0.5 shrink-0 text-[color:var(--text-secondary)]" />
                         )}
-                        <span>{t.owned(experience?.independentBilling && capability.id === "MULTIPLE_BRANCHES" ? "Independent branch plan" : capability.label)}{capability.included ? "" : t(capability.id === "WHATSAPP_INTEGRATION" ? " — Pro only" : " — Standard or Pro")}</span>
+                        <span>{t.owned(capability.label)}{capability.included ? "" : t(capability.id === "WHATSAPP_INTEGRATION" ? " — Pro only" : " — Standard or Pro")}</span>
                     </div>
                 ))}
             </div>

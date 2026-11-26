@@ -4,7 +4,13 @@
 
 Account Billing uses the branch directory and existing plan confirmation and operation panels. Switching to Basic uses the existing simple shell. Standard and Pro retain the full shell and refresh individual capabilities. The local desktop and phone navigation fixture covers delayed access responses, incompatible routes, mixed branch totals and revoked membership. Owner design review, real mandate approval and release are separate milestones.
 
+The default branch billing pass added explicit branch scope to processing and recovery views, and distinguished the source subscription’s renewal, the replacement’s planned first charge and its Undo deadline. The final local browser suites passed 42 billing, 12 branch-navigation and settings, and two Basic pending-save cases. The price summary also identifies the current plan rate when the next commitment awaits confirmation.
+
 [Desktop and mobile evidence and commands](../evidence/branch-plans-browser-2026-11-25.md)
+
+On 26 November, Account Billing and the processing page gained a **Resume payment recovery** action for an eligible branch receipt. Six local Chromium cases at 1440, 390 and 320 px exercised leaving a simulated hosted checkout, returning 16 minutes later, and continuing through a fresh hosted link or embedded card checkout.
+
+For a recovery under manual review, **Check payment status** opens the original receipt. At all three widths, Chromium verified that the owner could reload both screens, check again after an inconclusive response and see confirmation after simulated settlement, with Razorpay Checkout unavailable.
 
 ## Branch and seat setup forms — local, 2026-11-16
 

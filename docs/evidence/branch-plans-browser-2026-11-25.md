@@ -1,6 +1,76 @@
 # Independent branch plan browser evidence
 
-On 25 November 2026, the branch workspace, billing and navigation components ran against synthetic local API responses. The four new branch scenarios passed on desktop and mobile. The billing regression suite exercised all 39 desktop and mobile cases, with one mobile case passing on a separate retry. Provider verification has its own [Test-mode evidence record](branch-subscriptions-razorpay-test-2026-11-25.md).
+On 25 November 2026, the branch workspace, billing and navigation components ran against synthetic local API responses. Provider verification has its own [Test-mode evidence record](branch-subscriptions-razorpay-test-2026-11-25.md).
+
+## Overdue payment recovery
+
+The manual-review regression first reproduced “Payment recovery ended” for an unresolved receipt. After the correction, each viewport (1440, 390 and 320 px) opened the original receipt from Account Billing after reload. Checkout was unavailable throughout. An explicit status check received a simulated HTTP 409 and left the action available. A second check confirmed the same receipt after settlement. Together with the adjacent resume, replacement retry and cancellation checks, all 21 Chromium cases passed.
+
+```sh
+pnpm exec playwright test --config tests/billing-verification/playwright.config.ts --grep "checks a quarantined recovery receipt|resumes payment recovery|replacement retry on|source cancellation recovery on" --workers=1
+```
+
+On 26 November, six Chromium cases passed on desktop (1440 px) and phones (390 and 320 px). Each case started recovery on a halted branch, left the simulated hosted page without a callback, and advanced the browser clock by 16 minutes. Account Billing opened the fresh hosted URL for the original receipt. The processing page opened embedded card recovery on the same subscription. Each case issued exactly one start and one resume request.
+
+```sh
+pnpm exec playwright test --config tests/billing-verification/playwright.config.ts --grep "resumes payment recovery" --workers=1
+```
+
+## Previous subscription cancellation and trial charge dates
+
+On 26 November, all nine focused Chromium cases passed at 1440, 390 and 320 px using the local synthetic billing fixture.
+
+| Scenario | Observed behavior |
+| --- | --- |
+| Owner billing overview | A newer receipt existed, but **Check cancellation status** sent one request for the original replacement and its selected branch. The owner saw the outstanding cancellation before the request. Undo remained unavailable after its deadline. |
+| Billing processing page | An older replacement receipt marked scheduled still displayed the unresolved source cancellation. Checking it once adopted the recovered receipt and displayed the scheduled confirmation. Both recovery screens opened zero checkout windows. |
+| Authorized trial close to its first debit | With no provider-confirmed next charge date, the dialog showed the original planned debit on 22 January, the replacement's planned first charge on 22 February and the 20 February Undo deadline. All three screens fit each tested viewport. |
+
+```powershell
+pnpm.cmd exec playwright test --config tests/billing-verification/playwright.config.ts billing.spec.ts --workers=1 --grep "source cancellation recovery|pre-start trial quote"
+```
+
+## Real Clerk owner smoke
+
+On 26 November 2026, the signed-in owner opened the selected branch in Account Billing in desktop Chromium and mobile Chromium. Both tests passed against the local production build at `localhost:4371` and a freshly migrated, dedicated PostgreSQL 15 database. Each browser refreshed the real Clerk session, opened the branch URL and found the Billing and plans heading and the Plans section. [Authenticated owner smoke](../../tests/browser/authenticated-billing.spec.ts)
+
+The five retained reviewer sessions had expired or been removed. The repository helpers verified the matching Clerk Test tenant and an existing synthetic owner, then used a temporary Test ticket to sign in. Clerk confirmed revocation of the new session after the run. Billing provider writes were disabled and the database contained zero provider actions, subscriptions or billing changes after the tests.
+
+```powershell
+pnpm.cmd exec playwright test tests/browser/authenticated-billing.spec.ts --workers=1 --output=test-results/branch-product-owner-smoke --reporter=list
+```
+
+## Default branch billing verification
+
+On 26 November 2026, `pnpm exec playwright test --config tests/billing-verification/playwright.config.ts --workers=1` passed all 90 cases in 9.2 minutes on Node 20.19.6 and pnpm 9.15.9. All 30 cases passed at each of 1440, 390 and 320 px, with zero skips or retries. The local fixture rendered the application and supplied synthetic owner access, billing API responses and Razorpay Checkout callbacks.
+
+The 14 owner journeys cover navigation to the selected branch, one-branch trial pricing and authorization, payer defaults, session-only trial reminders, critical warnings, dismissal, decline and retry, technical and unknown payment failures, signed callback forwarding, explicit processing retries, UPI replacement and eMandate cutover. The success check held the verification response until it confirmed the browser had withheld the success message. The eMandate case verified that Basic billing stayed at ₹99 per month while the authorized upgrade granted Standard access.
+
+The 25 November run used Node 20.19.6, pnpm 9 and Playwright Chromium. All 56 browser cases passed with one worker per suite.
+
+| Suite | Result | Observed behavior |
+| --- | --- | --- |
+| Billing | 42/42 at 1440, 390 and 320 px | All three languages, branch-scoped processing and recovery, replacement checkout, separate plan history, invoice pagination and cancellation confirmation. |
+| Branch navigation and settings | 12/12 at 1440 and 390 px | Basic, Standard and Pro contributed ₹897 in monthly commitments across three separate debit dates. The selected branch’s plan confirmation displayed the existing renewal, planned first charge on the replacement and Undo deadline. Switching, a failed access refresh and a Pro downgrade preserved dirty core settings and a pending save. |
+| Basic pending operations | 2/2 at 1440 and 390 px | A pending write blocked navigation. Clearing an uncertain operation preserved the draft and sent no duplicate write. |
+
+```powershell
+pnpm.cmd exec playwright test --config tests/billing-verification/playwright.config.ts --workers=1
+node tests/navigation-restoration/run-browser.mjs --project desktop-1440 --project mobile-390 --grep "independent branch" --workers=1
+pnpm.cmd exec playwright test --config test-results/branch-product-browser/pending.config.ts --project desktop-1440 --project mobile-390 --grep "Basic pending operations block navigation" --workers=1
+```
+
+The third command used the repository’s visual consistency configuration with a fresh Vite fixture on loopback port 4194 and Playwright’s Chromium channel. Port 4193 was reserved for the separate provider checkout verification. With 4193 available, use `tests/visual-consistency/playwright.config.ts` for the same tests. Local font setup appears below.
+
+The final UI unit run passed all 88 tests in nine files, covering public pricing and localization, branch-scoped navigation and API requests, billing confirmations, and the distinction between a current billed plan and temporary access during replacement.
+
+```powershell
+pnpm.cmd exec vitest run --config vitest.unit.safe.config.ts --pool=threads --maxWorkers=1 tests/unit/components/BillingPriceSummary.test.tsx tests/unit/components/AccountBillingNavigation.test.tsx tests/unit/components/CheckoutConfirmationDialog.test.ts tests/unit/components/OrganizationBillingContent.test.tsx tests/unit/lib/billingApi.test.ts tests/unit/lib/billingInvoiceApi.test.ts tests/unit/pages/public-site.test.tsx tests/unit/lib/public-localization.test.ts tests/unit/pages/account-billing.test.tsx
+```
+
+A second run of `tests/unit/lib/public-localization.test.ts` and `tests/unit/pages/public-site.test.tsx` with the same command options passed all 21 tests. Each of the ten shared branch pricing and FAQ messages has a prepared Hindi and Hinglish translation. The catalogue plan names Basic, Standard and Pro appear in all three languages.
+
+The remaining sections retain the earlier PR verification and its retry history.
 
 ## Fixture prerequisites
 

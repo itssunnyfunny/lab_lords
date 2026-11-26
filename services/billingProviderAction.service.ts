@@ -1,4 +1,4 @@
-import { assertBranchPlanChangeAllowed, billingRecordScope, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
+import { assertBranchPlanChangeAllowed, billingRecordScope, isRetiredAggregateReceipt, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { assertRazorpayBillingWritesEnabled } from "@/lib/billingFeature";
@@ -35,7 +35,10 @@ export function isDefinitelyRejectedBillingProviderError(error: unknown) {
  * CONFIRMED means a durable provider response, not paid access or domain finalization.
  */
 export async function executeBillingProviderAction(input: Input): Promise<RazorpaySubscription> {
-  assertRazorpayBillingWritesEnabled(input.organizationId);
+  if (isRetiredAggregateReceipt(input.organizationId)) {
+    throw new BillingChangeInProgressError(input.change?.id ?? null, "Historical billing evidence is read-only");
+  }
+  assertRazorpayBillingWritesEnabled();
   const providerMode = resolveRazorpayMode();
   const request = canonical(input.command) as Prisma.InputJsonObject;
   const command = request as unknown as Command;

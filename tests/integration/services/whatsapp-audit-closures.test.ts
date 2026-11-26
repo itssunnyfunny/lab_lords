@@ -48,8 +48,8 @@ afterAll(disconnectDatabase);
 async function world() {
   const owner = await createUser();
   const org = await createOrg({ ownerId: owner.id });
-  await createSaasSubscription({ organizationId: org.id, plan: "PRO" });
   const branch = await createBranch({ organizationId: org.id });
+  await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "PRO" });
   const sender = await testPrisma.whatsAppSender.create({ data: {
     organizationId: org.id, provider: "META_CLOUD", providerMode: "TEST",
     wabaId: WABA.id, phoneNumberId: PHONE.id, displayPhoneNumber: PHONE.displayPhoneNumber,

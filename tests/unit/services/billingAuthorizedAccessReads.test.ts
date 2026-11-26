@@ -7,11 +7,13 @@ const mocks = vi.hoisted(() => ({
   staffFindFirst: vi.fn(),
   branchFindFirst: vi.fn(),
   branchFindUnique: vi.fn(),
+  agreementFindFirst: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     organization: { findUnique: mocks.organizationFindUnique },
+    branchBillingAgreement: { findFirst: mocks.agreementFindFirst },
     organizationBillingChange: {
       findFirst: mocks.latestChange,
       findMany: mocks.scheduledChanges,
@@ -369,6 +371,109 @@ describe("independent branch evidence", () => {
     vi.setSystemTime(new Date("2026-08-15T00:00:00Z"));
   });
   afterEach(() => vi.useRealTimers());
+
+  function ownerReads(branch: ReturnType<typeof independentBranch>) {
+    mocks.organizationFindUnique.mockResolvedValue(branch.organization);
+    mocks.branchFindUnique.mockResolvedValue(branch);
+    mocks.branchFindFirst.mockResolvedValue({ id: branch.id, name: "Selected", billingStatus: "ACTIVE" });
+    mocks.agreementFindFirst.mockResolvedValue(branch.billingAgreement);
+    mocks.latestChange.mockResolvedValue(null);
+    mocks.scheduledChanges.mockResolvedValue([]);
+    return () => BillingExperienceService.getBillingExperience(branch.organizationId, "owner_1", branch.id);
+  }
+
+  it("offers recovery after the local deadline only for the unpaid current branch mandate", async () => {
+    const branch = independentBranch("selected", "STANDARD");
+    const subscription = Object.assign(branch.billingAgreement.subscription, {
+      status: "HALTED", currentAgreementBranchId: branch.id,
+    });
+    const read = ownerReads(branch);
+    const receipt = { ...organization().pendingSubscriptionReplacement.replacementBillingChange,
+      type: "SUBSCRIPTION_AUTHORIZATION", idempotencyKey: "payment-recovery:original", status: "AWAITING_PAYMENT",
+      operationStatus: "AWAITING_PROVIDER_CONFIRMATION", agreementBranchId: branch.id,
+      organizationSubscriptionId: subscription.id, authorizedRazorpaySubscriptionId: subscription.razorpaySubscriptionId,
+      authorizedProviderMode: "TEST", confirmationDeadlineAt: new Date("2026-08-14T23:59:59Z"),
+    };
+    mocks.latestChange.mockResolvedValue(receipt);
+    await expect(read()).resolves.toMatchObject({ paymentAction: "RESUME_PAYMENT_RECOVERY", activeOperation: { id: receipt.id } });
+    mocks.latestChange.mockResolvedValue({ ...receipt, authorizedRazorpaySubscriptionId: "prior-mandate" });
+    await expect(read()).resolves.toMatchObject({ paymentAction: "WAIT_FOR_CONFIRMATION" });
+    mocks.latestChange.mockResolvedValue({ ...receipt, idempotencyKey: "new-subscription" });
+    await expect(read()).resolves.toMatchObject({ paymentAction: "WAIT_FOR_CONFIRMATION" });
+    const dismissed = { ...receipt, sequence: 4, status: "UNDONE", operationStatus: "ABANDONED",
+      failureCategory: "CHECKOUT_ABANDONED", resolvedAt: new Date("2026-08-14T23:59:58Z") };
+    Object.assign(branch.billingAgreement, { billingMutationSequence: dismissed.sequence });
+    mocks.latestChange.mockResolvedValue(dismissed);
+    await expect(read()).resolves.toMatchObject({ paymentAction: "RESUME_PAYMENT_RECOVERY", latestOperation: { id: receipt.id }, activeOperation: null });
+    Object.assign(branch.billingAgreement, { billingMutationSequence: dismissed.sequence + 1 });
+    await expect(read()).resolves.toMatchObject({ paymentAction: "UPDATE_CARD" });
+  });
+
+  it.each([
+    ["FAILED", "FAILED"],
+    ["AWAITING_PAYMENT", "AWAITING_PROVIDER_CONFIRMATION"],
+  ])("offers the original %s recovery receipt for review even after a newer operation", async (status, operationStatus) => {
+    const branch = independentBranch("selected", "STANDARD");
+    const subscription = branch.billingAgreement.subscription;
+    subscription.status = "HALTED";
+    const read = ownerReads(branch);
+    const receipt = { ...organization().pendingSubscriptionReplacement.replacementBillingChange,
+      type: "SUBSCRIPTION_AUTHORIZATION", idempotencyKey: "payment-recovery:original", status, operationStatus,
+      agreementBranchId: branch.id, organizationSubscriptionId: subscription.id, failureCategory: "MANUAL_REVIEW_REQUIRED",
+    };
+    const newer = { ...receipt, id: "newer", status: "APPLIED", operationStatus: "APPLIED", failureCategory: null };
+    mocks.latestChange.mockResolvedValue(newer);
+    mocks.scheduledChanges.mockResolvedValue([receipt]);
+    await expect(read()).resolves.toMatchObject({
+      customerState: "CONFIRMING", paymentAction: "CHECK_PAYMENT_STATUS", activeOperation: { id: receipt.id },
+      latestOperation: { id: newer.id }, scheduledChanges: [],
+    });
+    expect(mocks.scheduledChanges).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({
+      organizationId: branch.organizationId, agreementBranchId: branch.id,
+      AND: [{ OR: expect.arrayContaining([{ organizationSubscriptionId: subscription.id, type: "SUBSCRIPTION_AUTHORIZATION",
+        failureCategory: "MANUAL_REVIEW_REQUIRED", resolvedAt: null }]) }],
+    }) }));
+    mocks.scheduledChanges.mockResolvedValue([{ ...receipt, resolvedAt: new Date() }]);
+    await expect(read()).resolves.toMatchObject({ paymentAction: "UPDATE_CARD", activeOperation: null });
+  });
+
+  it.each(["FAILED", "SCHEDULED"])("offers exact source cancellation reconciliation for persisted %s behind a newer operation", async operationStatus => {
+    const branch = independentBranch("selected", "BASIC");
+    branch.billingAgreement.subscription.status = "PENDING";
+    const read = ownerReads(branch);
+    const receipt = { ...organization().pendingSubscriptionReplacement.replacementBillingChange,
+      status: "FAILED", operationStatus, failureCategory: "MANUAL_REVIEW_REQUIRED",
+      failureCode: "SOURCE_CANCELLATION_OUTCOME_UNKNOWN" };
+    const newer = { ...receipt, id: "newer", status: "APPLIED", operationStatus: "APPLIED", failureCategory: null, failureCode: null };
+    mocks.latestChange.mockResolvedValue(newer);
+    mocks.scheduledChanges.mockResolvedValue([receipt]);
+    await expect(read()).resolves.toMatchObject({
+      paymentAction: "RECONCILE_SOURCE_CANCELLATION", activeOperation: { id: receipt.id },
+      latestOperation: { id: newer.id }, scheduledChanges: [],
+    });
+    expect(mocks.scheduledChanges).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({
+      organizationId: branch.organizationId, agreementBranchId: branch.id,
+      AND: [{ OR: expect.arrayContaining([{ operationStatus: "SCHEDULED" }, { organizationSubscriptionId: branch.billingAgreement.subscription.id,
+        failureCategory: "MANUAL_REVIEW_REQUIRED", failureCode: { startsWith: "SOURCE_CANCELLATION_" } }]) }],
+    }) }));
+    mocks.scheduledChanges.mockResolvedValue([{ ...receipt, organizationSubscriptionId: "retired_source" }]);
+    await expect(read()).resolves.toMatchObject({ paymentAction: "UPDATE_CARD", activeOperation: null });
+  });
+
+  it.each(["AUTHENTICATED", "ACTIVE"])("quotes both dates for a near-boundary %s source with no provider charge date", async status => {
+    const branch = independentBranch("selected", "BASIC");
+    const read = ownerReads(branch);
+    const upcoming = new Date("2026-08-16T04:30:00Z");
+    Object.assign(branch.billingAgreement.subscription, { status, currentEnd: status === "ACTIVE" ? upcoming : null,
+      currentStart: null, paidThrough: null, invoices: [], providerStartAt: upcoming, chargeAt: null });
+    if (status === "AUTHENTICATED") Object.assign(branch.organization, { ownerTrialGrant: {
+      ownerId: "owner_1", organizationId: branch.organizationId, status: "ACTIVE", trialEndsAt: upcoming, trialPlan: "BASIC",
+    } });
+    await expect(read()).resolves.toMatchObject({
+      planChangeEffectiveAt: "2026-09-16T04:30:00.000Z", planChangeUndoCutoffAt: "2026-09-14T04:30:00.000Z",
+      planChangePriorBoundary: { firstCharge: status === "AUTHENTICATED", at: upcoming.toISOString() }, nextChargeAt: null,
+    });
+  });
 
   it.each([
     ["BASIC","STANDARD"], ["BASIC","PRO"], ["STANDARD","PRO"],

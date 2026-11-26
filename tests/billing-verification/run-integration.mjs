@@ -68,7 +68,7 @@ mkdirSync(temporaryRoot, { recursive: true });
 const env = { ...process.env, TEMP: temporaryRoot, TMP: temporaryRoot, TZ: "UTC", NODE_ENV: "test", VERCEL_ENV: "development", DATABASE_URL: target,
     TEST_DATABASE_URL: target, TEST_DATABASE_RESET_CONFIRM: database, DIRECT_URL: target, ACCELERATE_URL: "",
     RAZORPAY_MODE: "TEST", RAZORPAY_KEY_ID: "rzp_test_billing_verification", RAZORPAY_KEY_SECRET: "synthetic-test-secret",
-    RAZORPAY_BILLING_WRITES_ENABLED: "true", RAZORPAY_LIVE_CANARY_ORG_IDS: "" };
+    RAZORPAY_BILLING_WRITES_ENABLED: "true" };
 console.log("Verified a fresh empty local billing database with repository migrations; Razorpay calls use the synthetic Test adapter.");
 const child = spawn(process.execPath, ["node_modules/vitest/vitest.mjs", "run", ...(fullCI ? [] : files),
     "--pool=threads", "--hookTimeout=60000",

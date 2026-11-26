@@ -18,7 +18,6 @@ function productionEnvironment(): Record<string, string | undefined> {
     RAZORPAY_KEY_SECRET: "secret",
     RAZORPAY_WEBHOOK_SECRET: "webhook-secret",
     RAZORPAY_BILLING_WRITES_ENABLED: "false",
-    WORKSPACE_BRANCH_BILLING_V2_ENABLED: "false",
     VERCEL_ENV: "production",
     DATABASE_URL: "postgresql://user:password@db.example.test:5432/lablords",
     CRON_SECRET: "cron-secret",
@@ -38,15 +37,13 @@ describe("Razorpay preflight arguments", () => {
       .toThrow(/read-only/);
   });
 
-  it("defaults Preview switches on and Production switches off", () => {
+  it("expects billing writes in both configured environments", () => {
     expect(parsePreflightArguments(["--target=preview"])).toMatchObject({
       expectedBillingWrites: "enabled",
-      expectedV2: "enabled",
       expectedMultiMethodSubscriptions: "disabled",
     });
     expect(parsePreflightArguments(["--target=production"])).toMatchObject({
-      expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
+      expectedBillingWrites: "enabled",
       expectedMultiMethodSubscriptions: "disabled",
     });
   });
@@ -77,18 +74,6 @@ describe("Razorpay preflight arguments", () => {
     });
   });
 
-  it("accepts one explicit Production canary and rejects it for Preview", () => {
-    expect(parsePreflightArguments([
-      "--target=production",
-      "--expect-canary-org-id=org_canary",
-    ])).toMatchObject({ expectedCanaryOrganizationId: "org_canary" });
-
-    expect(() => parsePreflightArguments([
-      "--target=preview",
-      "--expect-canary-org-id=org_canary",
-    ])).toThrow(/Production/);
-  });
-
   it("accepts an exact database fingerprint expectation", () => {
     const fingerprint = "a".repeat(64);
     expect(parsePreflightArguments([
@@ -102,7 +87,6 @@ describe("Razorpay preflight environment", () => {
   it("accepts an isolated, held Production configuration", () => {
     expect(validatePreflightEnvironment("production", productionEnvironment(), {
       expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
       expectedMultiMethodSubscriptions: "disabled",
     })).toEqual([]);
   });
@@ -116,7 +100,6 @@ describe("Razorpay preflight environment", () => {
 
     expect(validatePreflightEnvironment("production", environment, {
       expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
       expectedMultiMethodSubscriptions: "disabled",
     })).toEqual(expect.arrayContaining([
       expect.stringContaining("does not match production Razorpay mode"),
@@ -126,44 +109,16 @@ describe("Razorpay preflight environment", () => {
     ]));
   });
 
-  it("requires a held Production canary allowlist to be empty or explicitly expected", () => {
-    const environment = productionEnvironment();
-    environment.RAZORPAY_LIVE_CANARY_ORG_IDS = "org_canary";
-
-    expect(validatePreflightEnvironment("production", environment, {
-      expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
-      expectedMultiMethodSubscriptions: "disabled",
-    })).toContainEqual(expect.stringContaining("must be empty"));
-
-    expect(validatePreflightEnvironment("production", environment, {
-      expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
-      expectedMultiMethodSubscriptions: "disabled",
-      expectedCanaryOrganizationId: "org_canary",
-    })).toEqual([]);
-
-    environment.RAZORPAY_LIVE_CANARY_ORG_IDS = "org_canary,org_unreviewed";
-    expect(validatePreflightEnvironment("production", environment, {
-      expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
-      expectedMultiMethodSubscriptions: "disabled",
-      expectedCanaryOrganizationId: "org_canary",
-    })).toContainEqual(expect.stringContaining("exactly the explicitly expected"));
-  });
-
   it("treats an absent multi-method flag as safely disabled and rejects drift", () => {
     const environment = productionEnvironment();
     expect(validatePreflightEnvironment("production", environment, {
       expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
       expectedMultiMethodSubscriptions: "enabled",
     })).toContainEqual(expect.stringContaining("must be true"));
 
     environment.RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED = "sometimes";
     expect(validatePreflightEnvironment("production", environment, {
       expectedBillingWrites: "disabled",
-      expectedV2: "disabled",
       expectedMultiMethodSubscriptions: "disabled",
     })).toContainEqual(expect.stringContaining("must be true or false"));
   });

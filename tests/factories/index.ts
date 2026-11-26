@@ -1,4 +1,5 @@
 import { testPrisma } from "../setup/db";
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 
 /**
  * FACTORY FUNCTIONS — Why These Exist
@@ -44,19 +45,27 @@ export async function createOrg(overrides: {
   businessType?: string | null;
   paymentGraceDays?: number;
   billingModelVersion?: "LEGACY" | "WORKSPACE_V2" | "BRANCH_V3";
-  selectedPostTrialPlan?: "BASIC" | "PRO" | null;
+  selectedPostTrialPlan?: "BASIC" | "STANDARD" | "PRO" | null;
+  trialPlan?: "BASIC" | "STANDARD" | "PRO" | null;
 } & Record<string, unknown>) {
-  return testPrisma.organization.create({
+  const now = new Date();
+  const organization = await testPrisma.organization.create({
     data: {
       id: overrides.id ?? uid(),
       name: overrides.name ?? "Test Org",
       ownerId: overrides.ownerId,
       businessType: overrides.businessType,
       paymentGraceDays: overrides.paymentGraceDays,
-      billingModelVersion: overrides.billingModelVersion,
+      billingModelVersion: overrides.billingModelVersion ?? "BRANCH_V3",
+      ownerTrialGrant: overrides.trialPlan ? { create: { ownerId: overrides.ownerId, trialPlan: overrides.trialPlan,
+        status: "ACTIVE", source: "ONBOARDING", trialStartedAt: now, claimedAt: now, consumedAt: now,
+        trialEndsAt: new Date(now.getTime() + 30 * 86400000),
+      } } : undefined,
       selectedPostTrialPlan: overrides.selectedPostTrialPlan,
     },
   });
+  if (organization.billingModelVersion !== "BRANCH_V3") registerHistoricalBillingFixture(organization.id);
+  return organization;
 }
 
 // ─── Branch ───────────────────────────────────────────────────────────────────
@@ -64,17 +73,24 @@ export async function createOrg(overrides: {
 export async function createBranch(overrides: {
   organizationId: string;
   billingStatus?: "ACTIVE" | "PENDING_ACTIVATION" | "REMOVAL_SCHEDULED" | "ARCHIVED";
+  selectedPlan?: "BASIC" | "STANDARD" | "PRO";
   name?: string;
   defaultFee?: number;
   defaultAdmissionFee?: number;
   id?: string;
 }) {
+  const org = await testPrisma.organization.findUniqueOrThrow({
+    where: { id: overrides.organizationId }, select: { billingModelVersion: true },
+  });
   return testPrisma.branch.create({
     data: {
       id: overrides.id ?? uid(),
       organizationId: overrides.organizationId,
       name: overrides.name ?? "Test Branch",
       billingStatus: overrides.billingStatus,
+      billingAgreement: org.billingModelVersion === "BRANCH_V3" ? {
+        create: { selectedPlan: overrides.selectedPlan ?? "BASIC" },
+      } : undefined,
       defaultFee: overrides.defaultFee ?? 1000,
       defaultAdmissionFee: overrides.defaultAdmissionFee ?? 0,
     },
@@ -229,6 +245,21 @@ export async function createSaasSubscription(overrides: {
   confirmedPaidPeriod?: boolean;
   paidThrough?: Date | null;
 }) {
+  // Convenience fixtures with exactly one branch have an unambiguous target.
+  // Multi-branch cases must choose the agreement; historical fixtures retain their aggregate source.
+  let agreementBranchId = overrides.agreementBranchId;
+  if (!agreementBranchId) {
+    const organization = await testPrisma.organization.findUniqueOrThrow({
+      where: { id: overrides.organizationId }, select: { billingModelVersion: true },
+    });
+    if (organization.billingModelVersion === "BRANCH_V3") {
+      const branches = await testPrisma.branchBillingAgreement.findMany({
+        where: { organizationId: overrides.organizationId }, select: { branchId: true }, take: 2,
+      });
+      if (branches.length !== 1) throw new Error("Choose the branch agreement for this subscription fixture.");
+      agreementBranchId = branches[0].branchId;
+    }
+  }
   const plan = overrides.plan ?? "PRO";
   const status = overrides.status ?? "ACTIVE";
   const amount = plan === "BASIC" ? 99 : plan === "STANDARD" ? 299 : 499;
@@ -249,9 +280,9 @@ export async function createSaasSubscription(overrides: {
     data: {
       id: uid(),
       organizationId: overrides.organizationId,
-      agreementBranchId: overrides.agreementBranchId,
-      currentAgreementBranchId: overrides.agreementBranchId,
-      currentOrganizationId: overrides.agreementBranchId ? null : overrides.organizationId,
+      agreementBranchId: agreementBranchId,
+      currentAgreementBranchId: agreementBranchId,
+      currentOrganizationId: agreementBranchId ? null : overrides.organizationId,
       providerMode: "TEST",
       plan,
       amount,
@@ -273,8 +304,8 @@ export async function createSaasSubscription(overrides: {
 
   if (!confirmedPaidPeriod || !paidThrough) return subscription;
 
-  const coordinator = overrides.agreementBranchId ? await testPrisma.branchBillingAgreement.update({
-    where: { branchId: overrides.agreementBranchId, organizationId: overrides.organizationId },
+  const coordinator = agreementBranchId ? await testPrisma.branchBillingAgreement.update({
+    where: { branchId: agreementBranchId, organizationId: overrides.organizationId },
     data: { billingMutationSequence: { increment: 1 } },
   }) : await testPrisma.organization.update({
     where: { id: overrides.organizationId },
@@ -290,8 +321,8 @@ export async function createSaasSubscription(overrides: {
       organizationId: overrides.organizationId,
       organizationSubscriptionId: subscription.id,
       sequence,
-      agreementBranchId: overrides.agreementBranchId,
-      branchId: overrides.agreementBranchId,
+      agreementBranchId: agreementBranchId,
+      branchId: agreementBranchId,
       idempotencyKey: `test-confirmed-settlement:${subscription.id}`,
       type: "LEGACY_TRANSITION",
       status: "APPLIED",
@@ -326,7 +357,7 @@ export async function createSaasSubscription(overrides: {
   });
   await testPrisma.organizationSubscriptionInvoice.create({
     data: {
-      agreementBranchId: overrides.agreementBranchId,
+      agreementBranchId: agreementBranchId,
       organizationId: overrides.organizationId,
       organizationSubscriptionId: subscription.id,
       razorpayInvoiceId: invoiceId,
@@ -379,6 +410,7 @@ export async function createSaasSubscription(overrides: {
  * Returns: { user, org, branch, shift, seat }
  */
 export async function createTestWorld(overrides: {
+  trialPlan?: "BASIC" | "STANDARD" | "PRO" | null;
   shiftName?: string;
   shiftStart?: string;
   shiftEnd?: string;
@@ -386,7 +418,7 @@ export async function createTestWorld(overrides: {
   defaultAdmissionFee?: number;
 } = {}) {
   const user = await createUser();
-  const org = await createOrg({ ownerId: user.id });
+  const org = await createOrg({ ownerId: user.id, trialPlan: overrides.trialPlan === undefined ? "BASIC" : overrides.trialPlan });
   const branch = await createBranch({
     organizationId: org.id,
     defaultFee: overrides.defaultFee,

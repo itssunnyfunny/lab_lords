@@ -12,7 +12,7 @@ const homeLinks = [
   ["staff", "/features#staff", "Staff access"],
 ] as const;
 const homeAnswers: PublicFaq[] = copy.home.questions.items.map((item, index) => ({
-  ...item, id: homeLinks[index][0], href: homeLinks[index][1], link: homeLinks[index][2],
+  ...item, answer: homeLinks[index][0] === "branches" ? publicBranchBillingCopy.branches : item.answer, id: homeLinks[index][0], href: homeLinks[index][1], link: homeLinks[index][2],
 }));
 
 export const publicFaqs: PublicFaq[] = [
@@ -26,8 +26,8 @@ export const publicFaqs: PublicFaq[] = [
   { id: "attendance", question: "Can staff use a student's QR code for attendance?", answer: "Attendance requires Standard or Pro. Authorized staff can scan a student's QR code, check their name and confirm check-in or check-out, or record attendance manually. Scanning needs staff supervision and does not verify identity. Attendance does not change fees or seat assignments.", href: "/features#attendance", link: "Attendance and staff-assisted QR" },
   { id: "ai", question: "Does AI make changes or send messages for me?", answer: "Standard and Pro include AI reports. Review each report against your records before using it. AI does not send messages or confirm payments.", href: "/features#ai-assistance", link: "AI assistance" },
   { id: "plans", question: "What do the plans cost?", answer: publicBillingPlans().map(plan => `${plan.shortName} is ${new Intl.NumberFormat("en-IN", { style: "currency", currency: plan.currency, maximumFractionDigits: 0 }).format(plan.amount ?? 0)} per billable branch per month`).join(". ") + ". Taxes, if applicable, are shown at checkout. Compare the included features before choosing a plan.", href: "/pricing#comparison", link: "Compare plans" },
-  { id: "trial-end", question: "What happens when my trial ends?", answer: "Choose and authorize a paid subscription in organization billing settings to continue paid access. Selecting a plan during signup does not itself charge you. Without an active subscription after the trial, the workspace becomes read-only.", href: "/pricing#trial", link: "Trial and subscription steps" },
-  { id: "cancel", question: "Can I cancel renewal?", answer: "The owner can cancel future renewal from organization billing settings. Cancellation takes effect at the end of the current paid period; paid access continues until then. Cancellation does not automatically refund the current period.", href: "/refund-policy", link: "Cancellation and Refund Policy" },
+  { id: "trial-end", question: "What happens when my trial ends?", answer: publicBranchBillingCopy.trialEnd, href: "/pricing#trial", link: "Trial and subscription steps" },
+  { id: "cancel", question: "Can I cancel renewal?", answer: publicBranchBillingCopy.cancel, href: "/refund-policy", link: "Cancellation and Refund Policy" },
   { id: "refund", question: "How do I ask about an incorrect charge?", answer: "Contact support with your account email, organization, payment ID, charge date and amount, and a description of the issue. The refund policy sets out eligibility and the 7-calendar-day request window. Never include card details, passwords or authentication codes.", href: "/refund-policy", link: "Refund eligibility and request details" },
   { id: "prepare", question: "What should I prepare before setting up?", answer: "Have your library or centre name and owner contact ready. This name becomes your first branch's name; city or area is optional. Prepare your seat count and numbering, shift timings and fees. If you have existing students, keep a spreadsheet ready to review after setup.", href: "/how-it-works", link: "Follow the setup walkthrough" },
   { id: "import-review", question: "Can I check an import before adding records?", answer: "Every plan lets you review spreadsheet imports before adding records. Map the fields, resolve flagged issues and confirm. Check the result afterward and keep your original file.", href: "/features#imports", link: "Reviewing imported information" },
@@ -49,16 +49,10 @@ export const homeFaqIds = homeAnswers.map(faq => faq.id);
 export const featureFaqIds = ["shifts", "import-review", "fees", "partial-payments", "receipts", "follow-ups", "attendance", "language", "staff", "ai"];
 export const pricingFaqIds = ["trial", "trial-end", "branches", "cancel", "refund"];
 
-const independentAnswers: Readonly<Record<string, string>> = {
-  branches: publicBranchBillingCopy.branches,
-  "trial-end": publicBranchBillingCopy.trialEnd,
-  cancel: publicBranchBillingCopy.cancel,
-};
-
-export function getPublicFaqs(ids: readonly string[], independent = false): PublicFaq[] {
+export function getPublicFaqs(ids: readonly string[]): PublicFaq[] {
   return ids.map(id => {
     const answer = publicFaqs.find(faq => faq.id === id);
     if (!answer) throw new Error(`Unknown public FAQ: ${id}`);
-    return independent && independentAnswers[id] ? { ...answer, answer: independentAnswers[id] } : answer;
+    return answer;
   });
 }

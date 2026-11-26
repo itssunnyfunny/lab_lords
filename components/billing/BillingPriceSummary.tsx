@@ -41,7 +41,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
   const formatInr = (amount: number) => formatNumber(amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
   const formatSubunits = (subunits: number) => formatNumber(subunits / 100, { style: "currency", currency: "INR" });
   const trialActive = hasActiveBillingTrial(experience);
-  const separateTrialDate = experience.independentBilling && !trialActive && experience.trialEndsAt
+  const separateTrialDate = !trialActive && experience.trialEndsAt
     ? <SummaryRow label="Owner trial end date" value={formatDate(experience.trialEndsAt)} /> : null;
   const carriedCoverage = experience.paidThrough ? null : experience.legacyCoverageEndsAt;
   const usingCarriedCoverage = Boolean(carriedCoverage && experience.billingAccessSource === "PAID");
@@ -66,20 +66,21 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
   if (paidPlanActive) {
     // Effective features can include a complimentary replacement grant. The
     // paid subscription and its amounts remain on the source until cutover.
-    const billedPlanName = current ? billingPlanName(current.plan) : selectedPlanName ?? "Provider confirmation pending";
+    const billedPlanName = current ? billingPlanName(current.plan) : "Provider confirmation pending";
     const effectivePlanName = billingPlanName(experience.effectivePlan);
     return (
       <section className="space-y-4 px-5 pt-4" aria-label={t.owned("Current subscription")}>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <SummaryRow label="Billed plan" value={billedPlanName} emphasis />
+          <SummaryRow label="Billed plan" value={billedPlanName} emphasis
+            detail={current && experience.monthlyCommitmentSubunits == null
+              ? t.owned("Plan rate · {amount}/month", { amount: formatInr(experience.currentMonthlyTotal) })
+              : undefined} />
+          {selectedPlanName && <SummaryRow label="Future paid plan" value={selectedPlanName} />}
           <SummaryRow label="Current access" value={effectivePlanName}
-            detail={billedPlanName !== effectivePlanName ? t("You can use {access}; your subscription is still billed as {plan}.", {access:effectivePlanName,plan:billedPlanName}) : undefined} />
+            detail={current && billedPlanName !== effectivePlanName ? t("You can use {access}; your subscription is still billed as {plan}.", {access:effectivePlanName,plan:billedPlanName}) : undefined} />
           <SummaryRow
             label="Monthly branch billing"
-            value={experience.independentBilling
-              ? experience.monthlyCommitmentSubunits == null ? "Awaiting confirmation" : t("{formatInr}/month", { formatInr: formatSubunits(experience.monthlyCommitmentSubunits) })
-              : t("{formatInr}/month", { formatInr: formatInr(experience.currentMonthlyTotal) })}
-            detail={experience.independentBilling ? undefined : t("{count} branch(s) × {amount}", { count: experience.confirmedQuantity, amount: formatInr(experience.currentUnitAmount) })}
+            value={experience.monthlyCommitmentSubunits == null ? "Awaiting confirmation" : t("{formatInr}/month", { formatInr: formatSubunits(experience.monthlyCommitmentSubunits) })}
             emphasis
           />
           <SummaryRow
@@ -105,7 +106,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
         <h3 className="text-base font-semibold text-[color:var(--text-primary)]">{t.owned("Current access")}</h3>
         <p className="mt-1 text-xs text-[color:var(--text-secondary)]">{t.owned("What your workspace can use right now.")}</p>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <SummaryRow label="Access now" value={trialActive ? experience.effectivePlan === "BASIC" ? "Basic trial" : experience.effectivePlan === "PRO" ? experience.trialPlan === "PRO" ? "Pro trial" : "Pro complimentary access during trial" : "Standard trial" : usingCarriedCoverage ? billingPlanName(experience.effectivePlan) : "No active paid plan"} emphasis />
+          <SummaryRow label="Access now" value={trialActive ? experience.effectivePlan === "BASIC" ? "Basic trial" : experience.effectivePlan === "PRO" ? experience.trialPlan === "PRO" ? "Pro trial" : "Pro complimentary access during trial" : experience.trialPlan === "BASIC" ? "Standard upgrade during trial" : "Standard trial" : usingCarriedCoverage ? billingPlanName(experience.effectivePlan) : "No active paid plan"} emphasis />
           {carriedCoverage && <SummaryRow label="Existing subscription coverage through" value={formatDate(carriedCoverage)} />}
           {separateTrialDate}
           {trialActive ? (

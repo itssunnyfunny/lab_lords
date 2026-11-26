@@ -7,7 +7,7 @@ import { EntitlementService } from "@/services/entitlement.service";
 import { BillingExperienceService } from "@/services/billingExperience.service";
 import { WhatsAppAuthorizationService } from "@/services/whatsappAuthorization.service";
 import { StaffService } from "@/services/staff.service";
-import { createOrg, createSaasSubscription, createUser } from "@/tests/factories";
+import { createBranch, createOrg, createSaasSubscription, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 
 async function createSubscription(
@@ -38,7 +38,7 @@ describe("subscription entitlements", () => {
     vi.unstubAllEnvs();
   });
 
-  it("gives organizations without a subscription Basic fallback access", async () => {
+  it("keeps organization management independent of branch premium entitlements", async () => {
     const user = await createUser();
     const org = await createOrg({ ownerId: user.id });
 
@@ -47,7 +47,7 @@ describe("subscription entitlements", () => {
     expect(profile).toMatchObject({
       plan: null,
       effectivePlan: "BASIC",
-      fallbackAccess: true,
+      fallbackAccess: false,
       limits: { maxBranches: null },
     });
     expect(profile.entitlements).not.toContain("ADVANCED_ANALYTICS");
@@ -58,10 +58,8 @@ describe("subscription entitlements", () => {
   it("lets Basic add billable branches while keeping premium features unavailable", async () => {
     const user = await createUser();
     const org = await createOrg({ ownerId: user.id });
+    const branch = await createBranch({organizationId: org.id, name: "Main"});
     await createSubscription(org.id, "BASIC");
-    const branch = await testPrisma.branch.create({
-      data: { organizationId: org.id, name: "Main", contactPhone: "+919876543210" },
-    });
 
     await expect(EntitlementService.assertCanCreateBranch(org.id)).resolves.toMatchObject({
       effectivePlan: "BASIC",
@@ -74,21 +72,21 @@ describe("subscription entitlements", () => {
 
   it.each(["BASIC", "STANDARD", "PRO"] as const)("enforces %s server access independently of client plan selection", async plan => {
     const owner = await createUser();
-    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const org = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({organizationId: org.id, name: "Plan boundary"});
     await createSubscription(org.id, plan);
-    const branch = await testPrisma.branch.create({ data: { organizationId: org.id, name: "Plan boundary" } });
     session.user = { id: owner.id };
     const response = await listStaffRoute(new NextRequest(`http://test.local/api/branches/${branch.id}/staff`), { params: Promise.resolve({ branchId: branch.id }) });
     expect(response.status).toBe(plan === "BASIC" ? 403 : 200);
     for (const entitlement of ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"] as const) {
-      const call = EntitlementService.assertOrganizationEntitlement(org.id, entitlement);
+      const call = EntitlementService.assertBranchEntitlement(branch.id, entitlement);
       const allowed = entitlement === "WHATSAPP_AUTOMATION" ? plan === "PRO" : plan !== "BASIC";
       if (allowed) await expect(call).resolves.toMatchObject({ effectivePlan: plan });
       else await expect(call).rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" });
     }
     const whatsapp = WhatsAppAuthorizationService.assertOwnerCanWrite(owner.id, org.id);
 
-    if (plan === "PRO") { await expect(whatsapp).resolves.toEqual({ id: org.id, entitled: true, canWrite: true, branches: null }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).resolves.toBe(true); }
+    if (plan === "PRO") { await expect(whatsapp).resolves.toEqual({ id: org.id, entitled: true, canWrite: true, branches: {included: [{id: branch.id, name: branch.name}], excluded: []} }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).resolves.toBe(true); }
     else { await expect(whatsapp).rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).rejects.toThrow("upgraded subscription"); }
     const stranger = await createUser();
     await expect(WhatsAppAuthorizationService.assertOwnerCanWrite(stranger.id, org.id)).rejects.toThrow();
@@ -97,12 +95,10 @@ describe("subscription entitlements", () => {
   it("enables Pro multi-branch, staff, analytics, and AI capabilities", async () => {
     const user = await createUser();
     const org = await createOrg({ ownerId: user.id });
+    const branch = await createBranch({organizationId: org.id, name: "Main"});
     await createSubscription(org.id, "PRO");
-    const branch = await testPrisma.branch.create({
-      data: { organizationId: org.id, name: "Main", contactPhone: "+919876543210" },
-    });
 
-    const profile = await EntitlementService.assertCanCreateBranch(org.id);
+    const profile = await EntitlementService.getBranchProfile(branch.id);
     expect(profile).toMatchObject({
       effectivePlan: "PRO",
       fallbackAccess: false,
@@ -110,7 +106,7 @@ describe("subscription entitlements", () => {
     });
     expect(profile.entitlements).toContain("AI_ACCESS");
     expect(profile.entitlements).toContain("WHATSAPP_AUTOMATION");
-    await expect(BillingExperienceService.getBillingExperience(org.id, user.id)).resolves.toMatchObject({
+    await expect(BillingExperienceService.getBillingExperience(org.id, user.id, branch.id)).resolves.toMatchObject({
       effectivePlan: "PRO",
       accessMode: "FULL",
     });
@@ -123,7 +119,7 @@ describe("subscription entitlements", () => {
     "does not grant legacy premium access from %s without settlement evidence",
     async status => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, billingModelVersion: "LEGACY" });
       await createSubscription(org.id, "PRO", status, { confirmedPaidPeriod: false });
 
       const profile = await EntitlementService.getOrganizationProfile(org.id);
@@ -142,7 +138,7 @@ describe("subscription entitlements", () => {
 
   it("does not trust a legacy future paidThrough without exact settlement evidence", async () => {
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "LEGACY" });
     await createSubscription(org.id, "PRO", "ACTIVE", {
       confirmedPaidPeriod: false,
       paidThrough: new Date(Date.now() + 86_400_000),
@@ -204,7 +200,7 @@ describe("subscription entitlements", () => {
 
   it("removes premium entitlements after a subscription expires", async () => {
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "LEGACY" });
     await createSubscription(org.id, "PRO", "EXPIRED");
 
     const profile = await EntitlementService.getOrganizationProfile(org.id);
@@ -219,7 +215,7 @@ describe("subscription entitlements", () => {
 
   it("never grants paid entitlements from a subscription in the other provider mode", async () => {
     const user = await createUser();
-    const org = await createOrg({ ownerId: user.id });
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "LEGACY" });
     await createSubscription(org.id, "PRO");
     vi.stubEnv("RAZORPAY_MODE", "LIVE");
     vi.stubEnv("RAZORPAY_KEY_ID", "rzp_live_entitlement_guard");

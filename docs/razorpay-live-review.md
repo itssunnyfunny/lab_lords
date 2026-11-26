@@ -1,6 +1,7 @@
 # Razorpay live-review checklist
 
-Do not request Live review or enable Production billing until the isolated Preview Test Mode acceptance and controlled Live canary in `docs/workspace-billing-rollout.md` pass.
+Before requesting Live review, retain the isolated Test acceptance results
+and use the operator-authorized procedure in [branch billing operations](billing/independent-branch-rollout.md).
 
 ## Public website
 
@@ -14,12 +15,14 @@ Verify these routes return `200` without Clerk authentication and remain linked 
 
 The Contact page must display the exact business/operational address supplied in Razorpay KYC. `NEXT_PUBLIC_BUSINESS_ADDRESS` cannot be empty, “available on request,” or another placeholder. Also confirm the monitored support email, one-business-day response time, billing/refund instructions, and Lab Lords brand name.
 
-Pricing must show only:
-
-- Basic: ₹299 per billable branch per month.
-- Standard: ₹499 per billable branch per month.
-
-Both plans include student records/import, seats/shifts/allocations, payments/dues/history, and separately billed multiple branches. Standard adds staff invitations and permission controls, advanced branch/cross-branch analytics, and AI insights/reports/message drafting. The 30-day Standard trial starts after first-branch onboarding, requires no card, is shared by all branches, and is granted only once per owner.
+Verify Basic at ₹99, Standard at ₹299 and Pro at ₹499 per branch per month.
+Three branches choosing one of each total ₹897 before tax. Each can renew
+on its own date and has its own invoice. Basic includes student records,
+reviewed imports, seats, shifts, allocations and fees. Standard adds staff
+administration, analytics and AI. Pro adds eligible WhatsApp functionality
+subject to sender setup and messaging terms. The once-per-owner trial uses
+the chosen trial tier and original expiry. A new branch can select a different
+future plan without extending that trial.
 
 ## Checkout, mandates, saved cards, and OTP copy
 
@@ -75,20 +78,20 @@ Do not select `subscription.expired`. Verify a signed delivery receives `2xx` an
 
 ## Test Mode acceptance
 
-Use the isolated Preview database, Test credentials, and a restricted Clerk QA account containing demo data only.
+Use an isolated Test database, Test credentials and a restricted QA account containing demo data. Run integration suites only against their dedicated disposable database.
 
-1. Confirm the four-step onboarding flow stores the selected post-trial plan and starts one owner trial without opening Checkout.
-2. Confirm Standard trial access, exact end date, ₹0 plan fee today, projected branch quantity/total, authorization state, and provider-confirmed first charge date semantics.
-3. Authorise Basic and Standard with Card, UPI AutoPay, and eMandate. Verify Razorpay—not a Lab Lords selector—controls eligible method visibility; test UPI mobile Intent, desktop QR, and delayed eMandate activation.
+1. Confirm onboarding stores the first branch’s future plan and grants one eligible owner trial without opening Checkout.
+2. Check the chosen trial tier, original end date, ₹0 plan fee today and quantity-one renewal quote for each branch. Confirm the first charge date against the provider.
+3. Authorise Basic, Standard and Pro. Exercise eligible card, UPI AutoPay and eMandate options offered by Checkout, including mobile Intent, desktop QR and delayed eMandate authorization.
 4. Decline authorisation, close Checkout without an attempt, retry with another eligible method, delay the callback, and complete via signed webhook. Existing trial/current entitlement must remain unchanged until mandate confirmation. Card contact remains editable and the saved-card OTP screen is absent.
 5. Confirm Basic direct calls to Standard analytics/staff/AI APIs return `403`; Standard succeeds when the role also permits it.
-6. Confirm Card plan/quantity changes still use provider PATCH. Confirm UPI/eMandate upgrade, downgrade, quantity change, and proactive payment-method switch create one authorised replacement with a boundary at least seven days away.
-7. Verify upgrades and branch additions receive complimentary access only after candidate mandate confirmation while canonical billing remains on the old subscription. Verify downgrades and branch removals do not apply early, and Undo works until 72 hours before cutover.
+6. Exercise all six directed plan changes and a payment-method switch on an existing branch mandate. Check the exact candidate identity, accepted method, quantity one and payment date quoted for the selected branch.
+7. Verify an eligible upgrade after candidate authorization, a downgrade at its quoted boundary and Undo up to its stored cutoff. For a paid change allow one hour for authorization and 48 hours before the charge to retire the source. Verify scheduling, Undo and archival for one branch leave sibling mandates and original trial dates intact.
 8. Test candidate failure/undo, old-subscription cancellation retry, duplicate events, orphan adoption after response loss, overlapping-charge manual review, atomic cutover, and the three-day eMandate bank-confirmation grace. For initial checkout, deliberately lose the response after Razorpay accepts the create and verify owner retry performs provider reads only, adopts the one exact uncharged `CREATED` object, and leaves the provider create count at one. Inject zero matches, two exact matches, and one authorized/charged match; all must remain typed manual review without cancellation, recreation, entitlement, or cross-tenant/cross-mode adoption. Do not expect an automatic refund.
 9. Test renewal `PENDING`, `PAUSED`, `HALTED`, hosted mandate recovery, Card fallback recovery, and full-access restoration only after captured payment/paid invoice advances `paidThrough`.
 10. Replay callbacks and webhooks out of order, race two identical signed deliveries, reclaim one deliberately expired Test claim, and confirm one provider reconciliation plus one invoice/history/activation effect. Confirm a stale token cannot finalize its successor.
 11. Run the enabled preflight with Subscription settings, UPI Intent, UPI QR, webhook, and amount evidence flags; retain its aggregate account Methods API report.
-12. Invoke the protected Preview billing cron manually. Vercel schedules crons only on Production deployments.
+12. Verify the target Preview branch and Test credentials, invoke the protected billing schedule and inspect its execution result. Check the eight named schedules in the deployed environment.
 
 Run and retain results for Prisma validation/migration status, full Vitest, lint, production build, authenticated desktop/mobile Playwright, Test Mode lifecycle, and signed webhook reconciliation.
 
@@ -97,7 +100,7 @@ Run and retain results for Prisma validation/migration status, full Vitest, lint
 Before the first Live authorization, the held Production preflight must prove:
 
 1. Production `SaasRazorpayPlan`, current subscriptions, offers, and provisioning records contain no `TEST` row.
-2. The Live provider catalog is empty, so the first Production authorization must provision a new Live ₹299 or ₹499 plan.
+2. On an empty Live catalogue, the first controlled authorization provisions the selected branch tier with its exact INR monthly terms. On an existing catalogue, verify the same-mode provider plan and its stored terms before reuse.
 3. Preview and Production database fingerprints differ.
 4. The account-specific Methods API is reachable with the Live Key ID and reports current recurring Card/eMandate capabilities plus UPI account availability. Dashboard evidence confirms Card, UPI AutoPay, eMandate, UPI Intent/QR, required webhooks, and tested amount eligibility.
 
@@ -105,9 +108,16 @@ After the controlled authorization, rerun the preflight with the returned Live `
 
 5. The Live plan returned by Razorpay is stored and provider-fetchable in Production only.
 
-Also retain evidence of a signed Live webhook `2xx`, completed processing page, correct quantity and charge date, `paidThrough` behavior, replacement/cutover, pause/resume, cancellation, hosted recovery, and successful Production hourly cron invocation.
+Also retain evidence of a signed Live webhook `2xx`, completed processing page, the selected branch’s quantity-one mandate and charge date, `paidThrough` behavior, replacement/cutover, pause/resume, cancellation, hosted recovery, and successful Production hourly cron invocation.
 
-The release order is: place Razorpay webhook ingress on an operator-owned hold and prove every old-deployment webhook request has terminated; deploy and verify the additive receipt-claim migration; promote the new token-fenced code with the multi-method flag off; verify a signed canary and reconcile the held interval before releasing ingress; separately place Razorpay billing writes on the server-side hold and prove every old initial-checkout/provider-create request has terminated; deploy and verify the additive provisioning-intent migration; promote the new intent/admission code while writes remain held and run one isolated Test-mode provisioning canary before releasing an allowlisted billing canary; have an authorized operator pause the Production hourly billing cron through the approved Vercel control and drain mutation leases; audit legacy unsupported-method cancellations against the explicitly bound, verified target; enable and validate all three methods in Test Mode; run one allowlisted Live workspace; then enable the application flag broadly only after reconciliation is clean. Never overlap the old unfenced webhook worker or old create-before-intent checkout path with its new protocol merely because both versions accept additive schema. Preview has no automatic cron worker. Any ambiguous provider state or overlapping charge goes to manual review, never an automatic refund.
+Drain incompatible writers and active leases before applying the forward
+migrations. Check the structural initialization counts and any unresolved
+historical mandates. Verify signed Test webhooks, initial provisioning,
+replacement cutover, uncertainty recovery and the eight schedules against the
+release candidate. Production release and any Live payment require separate
+operator authorization. Keep ambiguous provider outcomes on the original
+operation for read-only reconciliation.
+[Branch billing release and recovery](billing/independent-branch-rollout.md).
 
 ## Reviewer access
 

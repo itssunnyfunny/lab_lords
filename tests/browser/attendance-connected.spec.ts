@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/app/generated/prisma/client";
@@ -23,8 +24,20 @@ test("signed-in manual marks, visits, history and correction use the real isolat
         const profile = await page.evaluate(async () => { const response = await fetch("/api/users/me"); if (!response.ok) throw new Error("Development session unavailable"); const user = await response.json(); return { id: user.id }; });
         // A real Clerk session must resolve to this exact local database before fixture writes.
         expect(await db.user.count({ where: { id: profile.id } })).toBe(1);
-        const org = await db.organization.create({ data: { name: "Attendance isolated smoke", ownerId: profile.id, billingModelVersion: "LEGACY", timezone: "Asia/Kolkata" } });
-        const branch = await db.branch.create({ data: { organizationId: org.id, name: "Attendance smoke" } });
+        const branch = await db.$transaction(async tx => {
+            const now = new Date();
+            const owner = await tx.user.create({ data: { email: `attendance-${randomUUID()}@example.invalid` } });
+            const org = await tx.organization.create({ data: {
+                name: "Attendance isolated smoke", ownerId: owner.id, timezone: "Asia/Kolkata",
+                ownerTrialGrant: { create: { ownerId: owner.id, source: "ONBOARDING", status: "ACTIVE",
+                    trialPlan: "STANDARD", trialStartedAt: now, claimedAt: now, consumedAt: now,
+                    trialEndsAt: new Date(now.getTime() + 30 * 86400000) } },
+            } });
+            const branch = await tx.branch.create({ data: { organizationId: org.id, name: "Attendance smoke",
+                billingAgreement: { create: { selectedPlan: "STANDARD" } } } });
+            await tx.staff.create({ data: { branchId: branch.id, userId: profile.id, role: "MANAGER" } });
+            return branch;
+        });
         const student = await db.student.create({ data: { branchId: branch.id, name: "Attendance smoke student", joinedAt: new Date(Date.now() - 86400000) } });
         await page.goto(`/branch/${branch.id}/attendance`);
         const row = page.getByRole("article", { name: "Attendance for Attendance smoke student" });

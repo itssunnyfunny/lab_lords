@@ -1,13 +1,16 @@
 import { billingRecordScope, lockBillingCoordinator, billingCoordinator, withSystemBillingScope } from "@/services/billingAgreementScope.service";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   BillingMutationService,
 } from "@/services/billingMutation.service";
 import { recordBillingMutationAudit } from "@/services/billingMutationAudit.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
+import { suppressExpiredBranchWork } from "@/services/branchPremiumWork.service";
 import { BranchService } from "@/services/branch.service";
 import { OwnerTrialService } from "@/services/ownerTrial.service";
 import { areRazorpayBillingWritesEnabled } from "@/lib/billingFeature";
+import { isPaymentRecoveryAuthorization, TERMINAL_STATUSES } from "@/lib/billingState";
 import { isSupportedProviderPaymentMethod } from "@/services/billingPaymentMethod.service";
 import {
   BillingReplacementService,
@@ -25,6 +28,17 @@ export const REPLACEMENT_DEADLINE_PAGE_SIZE = 100;
 
 const OPEN_REPLACEMENT_STATUSES = ["AWAITING_PAYMENT", "SCHEDULED"] as const;
 const TERMINAL_REPLACEMENT_STATUSES = ["FAILED", "UNDONE", "SUPERSEDED"] as const;
+
+// A lost create response can precede the local subscription binding. Only
+// reconcile the original durable dispatch. A fresh create needs owner intent.
+const unboundProvisioning: Prisma.OrganizationBillingChangeWhereInput = {
+  status: "FAILED", resolvedAt: null, failureCategory: "MANUAL_REVIEW_REQUIRED",
+  OR: [
+    { type: "SUBSCRIPTION_AUTHORIZATION", provisioningIntentVersion: 1, organizationSubscriptionId: null },
+    { provisioningIntentVersion: 2, replacementSubscriptionId: null },
+  ],
+  providerActions: { some: { purpose: "CREATE" } },
+};
 
 export function isReplacementMandateConfirmed(change: {
   operationStatus: string;
@@ -127,15 +141,28 @@ export async function recoverExpiredBillingMutationLease(
 
 export class BillingDeadlineService {
   static async run(now = new Date()) {
-    const total = await this.runScope(now, null);
+    const expiredTrials = await OwnerTrialService.expireDueTrials(now);
+    const total = {
+      expiredTrials: expiredTrials.count, recoveredLeases: 0, retriedMutations: 0,
+      submittedCancellations: 0, archivedBranches: 0, confirmedCheckouts: 0,
+      timedOutCheckouts: 0, lapsedAuthorizations: 0, reconciledSubscriptions: 0,
+      reconciledReplacements: 0, promotedReplacements: 0, retriedReplacementCancellations: 0,
+      errors: [] as Array<{ organizationId: string; branchId?: string; message: string }>,
+    };
+    const unsubmitted: Prisma.WhatsAppMessageWhereInput = {
+      status: { in: ["SCHEDULED", "CLAIMED", "SUBMITTING"] },
+      providerCallAdmittedAt: null, providerMessageId: null, acceptedAt: null,
+    };
     let cursor: string | undefined;
     for (;;) {
       const agreements = await prisma.branchBillingAgreement.findMany({
         where: { branch: { organization: { billingModelVersion: "BRANCH_V3" } },
           OR: [
+            { branch: { whatsAppMessages: { some: unsubmitted } } },
             { pendingSubscriptionReplacement: { isNot: null } },
             { billingMutationLeaseUntil: { lte: now } },
             { changes: { some: { OR: [
+              unboundProvisioning,
               { type: "SUBSCRIPTION_AUTHORIZATION", operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] }, confirmationDeadlineAt: { lte: now } },
               { type: "CANCELLATION", status: "QUEUED", undoCutoffAt: { lte: now } },
               { type: "BRANCH_REMOVAL", status: "SCHEDULED", effectiveAt: { lte: now } },
@@ -150,11 +177,21 @@ export class BillingDeadlineService {
               ] },
             ] } } },
           ] },
-        select: { organizationId: true, branchId: true, billingMutationLeaseToken: true, billingMutationLeaseUntil: true },
+        select: { organizationId: true, branchId: true, billingMutationLeaseToken: true, billingMutationLeaseUntil: true,
+          branch: { select: { whatsAppMessages: { where: unsubmitted, take: 1, select: { id: true } } } },
+        },
         orderBy: { branchId: "asc" }, take: REPLACEMENT_DEADLINE_PAGE_SIZE,
         ...(cursor ? { cursor: { branchId: cursor }, skip: 1 } : {}),
       });
       for (const agreement of agreements) {
+        if (agreement.branch.whatsAppMessages.length) {
+          try {
+            await prisma.$transaction(tx => suppressExpiredBranchWork(tx, agreement.organizationId, agreement.branchId));
+          } catch {
+            total.errors.push({ organizationId: agreement.organizationId, branchId: agreement.branchId,
+              message: "Queued branch messages need an eligibility recheck" });
+          }
+        }
         try {
           const result = await withSystemBillingScope(agreement, () => this.runScope(now, agreement));
           for (const key of Object.keys(result) as Array<keyof typeof result>) {
@@ -169,25 +206,19 @@ export class BillingDeadlineService {
       if (agreements.length < REPLACEMENT_DEADLINE_PAGE_SIZE) break;
       cursor = agreements[agreements.length - 1].branchId;
     }
+    // Re-read retirement evidence after each agreement has had a chance to reconcile.
+    const archival = await BranchService.archiveDueBillingRemovals(now);
+    total.archivedBranches = archival.archived;
+    total.errors.push(...(archival.errors ?? []));
     return total;
   }
 
   private static async runScope(now: Date, scope: {
     branchId: string; organizationId: string; billingMutationLeaseUntil: Date | null; billingMutationLeaseToken: string | null;
-  } | null) {
+  }) {
     const errors: Array<{ organizationId: string; branchId?: string; message: string }> = [];
-    const expiredTrials = scope ? { count: 0 } : await OwnerTrialService.expireDueTrials(now);
-
-    const staleLeases = scope
-      ? scope.billingMutationLeaseUntil && scope.billingMutationLeaseUntil <= now
-        ? [{ id: scope.organizationId, billingMutationLeaseToken: scope.billingMutationLeaseToken }] : []
-      : await prisma.organization.findMany({
-      where: {
-        billingModelVersion: { not: "BRANCH_V3" },
-        billingMutationLeaseUntil: { lte: now },
-      },
-      select: { id: true, billingMutationLeaseToken: true },
-    });
+    const staleLeases = scope.billingMutationLeaseUntil && scope.billingMutationLeaseUntil <= now
+      ? [{ id: scope.organizationId, billingMutationLeaseToken: scope.billingMutationLeaseToken }] : [];
     let recoveredLeases = 0;
     for (const organization of staleLeases) {
       const recovered = await recoverExpiredBillingMutationLease(organization, now);
@@ -202,14 +233,14 @@ export class BillingDeadlineService {
         replacementSubscriptionId: null,
         failureCategory: { in: ["PROVIDER_REJECTED", "PRE_PROVIDER_FAILURE"] },
         attemptCount: { lt: MAX_AUTOMATIC_ATTEMPTS },
-        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
+        organization: { billingModelVersion: "BRANCH_V3" },
       },
       orderBy: [{ organizationId: "asc" }, { sequence: "asc" }],
       distinct: ["organizationId"],
     });
     let retriedMutations = 0;
     for (const change of retryableFailures) {
-      if (!areRazorpayBillingWritesEnabled(change.organizationId)) {
+      if (!areRazorpayBillingWritesEnabled()) {
         continue;
       }
       try {
@@ -229,7 +260,7 @@ export class BillingDeadlineService {
         type: "CANCELLATION",
         status: "QUEUED",
         undoCutoffAt: { lte: now },
-        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
+        organization: { billingModelVersion: "BRANCH_V3" },
       },
       select: { organizationId: true },
       distinct: ["organizationId"],
@@ -248,13 +279,29 @@ export class BillingDeadlineService {
     let reconciledReplacements = 0;
     let promotedReplacements = 0;
     let retriedReplacementCancellations = 0;
+    const lostCreates = await prisma.organizationBillingChange.findMany({
+      where: { ...billingRecordScope(), organizationId: scope.organizationId, ...unboundProvisioning },
+      select: { id: true, organizationId: true, createdByUserId: true, provisioningIntentVersion: true },
+    });
+    for (const change of lostCreates) {
+      try {
+        if (change.provisioningIntentVersion === 2) {
+          await BillingReplacementService.reconcileProvisioning(change.id, now);
+          reconciledReplacements += 1;
+        } else if (change.createdByUserId) {
+          await BillingService.reconcileMutation(change.createdByUserId, change.organizationId, change.id);
+        }
+      } catch {
+        errors.push({ organizationId: change.organizationId, message: "The original subscription creation still needs reconciliation." });
+      }
+    }
     let replacementCursor: string | undefined;
     while (true) {
       const replacementPage = await prisma.organizationBillingChange.findMany({
         where: {
           ...billingRecordScope(),
           replacementSubscriptionId: { not: null },
-          organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
+          organization: { billingModelVersion: "BRANCH_V3" },
           OR: [
             {
               status: { in: [...OPEN_REPLACEMENT_STATUSES] },
@@ -279,9 +326,10 @@ export class BillingDeadlineService {
                 { failureCode: { startsWith: "REPLACEMENT_UNDO_CANCELLATION_OUTCOME_UNKNOWN_" } },
                 { failureCode: { startsWith: "REPLACEMENT_UNDO_CANCELLATION_PROVIDER_REJECTED_" } },
                 { failureCode: { startsWith: "REPLACEMENT_UNDO_CANCELLATION_LEASE_EXPIRED_" } },
+                  { failureCode: { in: ["SOURCE_CANCELLATION_OUTCOME_UNKNOWN", "SOURCE_CANCELLATION_LEASE_EXPIRED"] } },
               ],
               replacementSubscription: {
-                is: scope ? { pendingAgreementBranchId: scope.branchId } : { pendingReplacementOrganizationId: { not: null } },
+                is: { pendingAgreementBranchId: scope.branchId },
               },
             },
           ],
@@ -300,8 +348,14 @@ export class BillingDeadlineService {
           if (TERMINAL_REPLACEMENT_STATUSES.includes(
             change.status as typeof TERMINAL_REPLACEMENT_STATUSES[number]
           )) {
+            if (change.status === "FAILED" && change.failureCode?.startsWith("SOURCE_CANCELLATION_")
+              && candidate.pendingAgreementBranchId === scope.branchId) {
+              await BillingReplacementService.reconcileSourceCancellation(change.id, now);
+              reconciledReplacements += 1;
+              continue;
+            }
             if (isCandidateCancellationReconciliationCode(change.failureCode)
-              && (candidate.pendingAgreementBranchId || candidate.pendingReplacementOrganizationId)) {
+              && candidate.pendingAgreementBranchId === scope.branchId) {
               await BillingReplacementService.reconcileCandidateCancellation(change.id, now);
               retriedReplacementCancellations += 1;
             }
@@ -394,8 +448,7 @@ export class BillingDeadlineService {
         });
       }
     }
-    const archivedBranches = scope ? { archived: 0, errors: [] } : await BranchService.archiveDueBillingRemovals(now);
-    errors.push(...(archivedBranches.errors ?? []));
+
 
     const dueCheckoutConfirmations = await prisma.organizationBillingChange.findMany({
       where: {
@@ -403,7 +456,7 @@ export class BillingDeadlineService {
         type: "SUBSCRIPTION_AUTHORIZATION",
         operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] },
         confirmationDeadlineAt: { lte: now },
-        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
+        organization: { billingModelVersion: "BRANCH_V3" },
       },
       include: { organizationSubscription: true },
       orderBy: [{ organizationId: "asc" }, { sequence: "asc" }],
@@ -413,7 +466,7 @@ export class BillingDeadlineService {
     for (const change of dueCheckoutConfirmations) {
       const subscription = change.organizationSubscription;
       if (!subscription) {
-        if (scope && change.provisioningIntentVersion != null) {
+        if (change.provisioningIntentVersion != null) {
           if (change.createdByUserId) {
             try {
               await BillingService.reconcileMutation(change.createdByUserId, change.organizationId, change.id);
@@ -443,23 +496,26 @@ export class BillingDeadlineService {
       }
 
       try {
-        const reconciliation = await BillingReconciliationService.reconcileByOrganization(
-          change.organizationId,
-          { paymentId: change.providerPaymentId, now }
+        const recoveryConfirmation = isPaymentRecoveryAuthorization(change)
+          || ["PENDING", "HALTED", "PAUSED"].includes(subscription.status);
+        const reconciliation = await BillingReconciliationService.reconcileProviderSubscription(
+          subscription.razorpaySubscriptionId,
+          { paymentId: recoveryConfirmation ? null : change.providerPaymentId, commercialIntentChangeId: change.id, now }
         );
-        const paymentConfirmed = !reconciliation.payment
-          || ["authorized", "captured"].includes(reconciliation.payment.status);
-        const authorizationConfirmed = isSupportedProviderPaymentMethod(
-          reconciliation.subscription.providerPaymentMethod
-        )
-          && ["AUTHENTICATED", "ACTIVE"].includes(reconciliation.subscription.status)
-          && paymentConfirmed;
-        const recoveryConfirmation = ["PENDING", "HALTED"].includes(subscription.status);
+        const authorizationConfirmed = reconciliation.commercialIntentChangeId === change.id
+          && ["AUTHORIZATION_ONLY", "EXACT_SETTLEMENT"].includes(reconciliation.evidenceKind)
+          && isSupportedProviderPaymentMethod(reconciliation.subscription.providerPaymentMethod)
+          && ["AUTHENTICATED", "ACTIVE"].includes(reconciliation.subscription.status);
         const paidPeriodAdvanced = reconciliation.confirmedPaidPeriod
           && Boolean(reconciliation.subscription.paidThrough)
           && (!subscription.paidThrough || reconciliation.subscription.paidThrough! > subscription.paidThrough);
-        const providerConfirmed = recoveryConfirmation ? paidPeriodAdvanced : authorizationConfirmed;
+        const providerConfirmed = authorizationConfirmed && (!recoveryConfirmation || paidPeriodAdvanced);
 
+        if (!providerConfirmed && !TERMINAL_STATUSES.has(reconciliation.subscription.status)) {
+          // The browser window can close before bank authorization or recovery settles.
+          // Keep the original receipt open until evidence resolves this mandate.
+          continue;
+        }
         const resolved = await prisma.organizationBillingChange.updateMany({
           where: {
             ...billingRecordScope(),
@@ -483,7 +539,7 @@ export class BillingDeadlineService {
                 operationStatus: "FAILED",
                 failureCategory: "CONFIRMATION_TIMEOUT",
                 failureCode: null,
-                lastError: "Razorpay did not confirm authorization before the deadline; start authorization again",
+                lastError: "This mandate ended before confirmation. Start a new checkout for this branch.",
                 failedAt: now,
                 resolvedAt: now,
               },
@@ -500,23 +556,8 @@ export class BillingDeadlineService {
           timedOutCheckouts += resolved.count;
         }
       } catch (error) {
-        const failed = await prisma.organizationBillingChange.updateMany({
-          where: {
-            ...billingRecordScope(),
-            id: change.id,
-            operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] },
-            confirmationDeadlineAt: { lte: now },
-          },
-          data: {
-            status: "FAILED",
-            operationStatus: "FAILED",
-            failureCategory: "CONFIRMATION_TIMEOUT",
-            lastError: "Razorpay confirmation could not be completed before the deadline; start authorization again",
-            failedAt: now,
-            resolvedAt: now,
-          },
-        });
-        timedOutCheckouts += failed.count;
+        // An unreadable provider outcome keeps the existing operation recoverable.
+        // Another scheduled pass or an owner retry reconciles the same mandate.
         errors.push({
           organizationId: change.organizationId,
           message: error instanceof Error ? error.message : "Checkout deadline reconciliation failed",
@@ -527,8 +568,8 @@ export class BillingDeadlineService {
     const deadlineSubscriptions = await prisma.organizationSubscription.findMany({
       where: {
         ...billingRecordScope(),
-        ...(scope ? { currentAgreementBranchId: scope.branchId } : { currentOrganizationId: { not: null } }),
-        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
+        currentAgreementBranchId: scope.branchId,
+        organization: { billingModelVersion: "BRANCH_V3" },
         paidThrough: null,
         status: { in: ["CREATED", "AUTHENTICATED", "ACTIVE"] },
         OR: [
@@ -561,7 +602,7 @@ export class BillingDeadlineService {
           { now }
         );
         if (!reconciled.subscription.paidThrough
-          && areRazorpayBillingWritesEnabled(subscription.organizationId)) {
+          && areRazorpayBillingWritesEnabled()) {
           const lapsed = await cancelLapsedInitialAuthorization(subscription.id, now, subscription);
           if (lapsed) lapsedAuthorizations += 1;
         }
@@ -577,8 +618,8 @@ export class BillingDeadlineService {
     const staleSubscriptions = await prisma.organizationSubscription.findMany({
       where: {
         ...billingRecordScope(),
-        ...(scope ? { currentAgreementBranchId: scope.branchId } : { currentOrganizationId: { not: null } }),
-        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
+        currentAgreementBranchId: scope.branchId,
+        organization: { billingModelVersion: "BRANCH_V3" },
         status: { in: ["ACTIVE", "PENDING", "HALTED", "PAUSED", "CANCELLED", "COMPLETED"] },
         OR: [{ lastReconciledAt: null }, { lastReconciledAt: { lt: staleBefore } }],
         id: { notIn: deadlineSubscriptions.map(subscription => subscription.id) },
@@ -600,11 +641,9 @@ export class BillingDeadlineService {
     }
 
     return {
-      expiredTrials: expiredTrials.count,
       recoveredLeases,
       retriedMutations,
       submittedCancellations: dueCancellations.length,
-      archivedBranches: archivedBranches.archived,
       confirmedCheckouts,
       timedOutCheckouts,
       lapsedAuthorizations,

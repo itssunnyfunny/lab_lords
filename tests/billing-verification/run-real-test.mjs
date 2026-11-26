@@ -1,6 +1,5 @@
-import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { execFileSync, spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readTestCredentials } from "./test-credentials.mjs";
@@ -9,13 +8,10 @@ import { readVerifiedSyntheticFixtures, validateResumeProof } from "./real-test-
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 process.chdir(root);
-if (process.argv.slice(2).some(arg => !["--resume", "--inspect", "--add-basic-retest", "--verify-completed"].includes(arg))) throw new Error("Use only --resume, --inspect or --add-basic-retest.");
-const verifyCompleted = process.argv.includes("--verify-completed");
-const inspectOnly = process.argv.includes("--inspect");
-const addBasicRetest = process.argv.includes("--add-basic-retest");
-if (addBasicRetest) throw new Error("Legacy fixture extensions are disabled for catalogue v2.");
-if (inspectOnly && addBasicRetest) throw new Error("Read-only inspection cannot add fixtures.");
-const resume = verifyCompleted || inspectOnly || addBasicRetest || process.argv.includes("--resume");
+const args = process.argv.slice(2);
+if (args.length !== 1 || !["--inspect", "--verify-completed"].includes(args[0])) {
+    throw new Error("Use branch-preauthorization.ts --prepare for new branch Checkouts. Historical fixtures support --inspect and --verify-completed.");
+}
 
 const { keyId, keySecret } = readTestCredentials();
 
@@ -39,40 +35,16 @@ if (container.id !== config.containerId || container.image !== "postgres:16-alpi
 const artifactDir = resolve(root, "test-results/billing-verification");
 mkdirSync(artifactDir, { recursive: true });
 const proofPath = resolve(artifactDir, "three-plan-real-test-database-proof.json");
-const database = resume
-    ? validateResumeProof(JSON.parse(readFileSync(proofPath, "utf8")), config.containerId)
-    : `lab_lords_billing_real_${randomBytes(6).toString("hex")}_browser_test`;
-if (!resume && existsSync(proofPath)) throw new Error("Existing v2 proof found; use --resume instead of duplicating fixtures.");
-if (!resume) {
-    const source = new Client({ connectionString: `postgresql://postgres@127.0.0.1:${config.port}/${config.database}` });
-    await source.connect();
-    try {
-        const identity = await source.query("SELECT current_database() AS name");
-        if (identity.rows[0]?.name !== config.database) throw new Error("Fixture database identity changed.");
-        await source.query(`CREATE DATABASE "${database}" TEMPLATE template0`);
-    } finally { await source.end(); }
-    const schema = execFileSync("docker", ["exec", config.containerId, "pg_dump", "--schema-only", "--no-owner", "--no-privileges", "-U", "postgres", "-d", config.database],
-        { windowsHide: true, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
-    execFileSync("docker", ["exec", "-i", config.containerId, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", database],
-        { input: schema, windowsHide: true, maxBuffer: 16 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] });
-}
+const proof = JSON.parse(readFileSync(proofPath, "utf8"));
+if (proof.catalogVersion !== 2) throw new Error("Catalogue v2 proof required.");
+const database = validateResumeProof(proof, config.containerId);
 const target = `postgresql://postgres@127.0.0.1:${config.port}/${database}`;
 const db = new Client({ connectionString: target });
 await db.connect();
 try {
-    if (!resume) await db.query(readFileSync("prisma/migrations/20261023090000_three_plan_catalogue/migration.sql", "utf8"));
     await db.query("BEGIN READ ONLY");
-    if (resume) {
-        if (JSON.parse(readFileSync(proofPath, "utf8")).catalogVersion !== 2) throw new Error("Catalogue v2 proof required.");
-        await readVerifiedSyntheticFixtures(database, async sql => (await db.query(sql)).rows, 2);
-    }
-    else {
-        const proof = await db.query('SELECT current_database() AS name, (SELECT count(*)::int FROM "User") AS users, (SELECT count(*)::int FROM "Organization") AS organizations');
-        if (proof.rows[0]?.name !== database || proof.rows[0]?.users !== 0 || proof.rows[0]?.organizations !== 0) throw new Error("Fresh billing database isolation could not be proved.");
-    }
+    await readVerifiedSyntheticFixtures(database, async sql => (await db.query(sql)).rows, 2);
 } finally { await db.query("ROLLBACK"); await db.end(); }
-if (!resume) writeFileSync(proofPath, JSON.stringify({ database, containerId: config.containerId,
-    catalogVersion: 2, schemaOnly: true, emptyBeforeSeed: true, mode: "TEST", provider: "real Razorpay Test API", startupProviderMutations: 0 }, null, 2));
 const temporaryRoot = resolve(root, "node_modules/.cache/billing-real-test");
 mkdirSync(temporaryRoot, { recursive: true });
 const env = {};
@@ -81,11 +53,11 @@ for (const name of ["SystemRoot", "SYSTEMROOT", "WINDIR", "SystemDrive", "ComSpe
 }
 Object.assign(env, { TEMP: temporaryRoot, TMP: temporaryRoot, NODE_ENV: "test", VERCEL_ENV: "development",
     DATABASE_URL: target, DIRECT_URL: target, ACCELERATE_URL: "", BILLING_REAL_TEST_DATABASE: database,
-    BILLING_REAL_TEST_HARNESS: "1", BILLING_REAL_TEST_RESUME: resume ? "1" : "0", BILLING_REAL_TEST_CONTAINER_ID: config.containerId, RAZORPAY_MODE: "TEST", RAZORPAY_KEY_ID: keyId, RAZORPAY_KEY_SECRET: keySecret,
-    RAZORPAY_BILLING_WRITES_ENABLED: "true", RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED: "false",
-    RAZORPAY_LIVE_CANARY_ORG_IDS: "", WORKSPACE_BRANCH_BILLING_V2_ENABLED: "true" });
-console.log(resume ? "Original synthetic Test database and exact fixtures verified read-only; no provider mutations." : "Fresh schema-only disposable database verified. Test credentials loaded in memory; no provider writes on startup.");
-const child = spawn(process.execPath, ["--import", "tsx", "tests/billing-verification/real-test-server.ts", ...(verifyCompleted ? ["--verify-completed"] : inspectOnly ? ["--inspect"] : addBasicRetest ? ["--add-basic-retest"] : [])],
+    BILLING_REAL_TEST_HARNESS: "1", BILLING_REAL_TEST_RESUME: "1", BILLING_REAL_TEST_CONTAINER_ID: config.containerId, RAZORPAY_MODE: "TEST", RAZORPAY_KEY_ID: keyId, RAZORPAY_KEY_SECRET: keySecret,
+    RAZORPAY_BILLING_WRITES_ENABLED: "false",
+ });
+console.log("Historical synthetic Test database and exact fixtures verified read-only.");
+const child = spawn(process.execPath, ["--import", "tsx", "tests/billing-verification/real-test-server.ts", args[0]],
     { cwd: root, env, stdio: "inherit", windowsHide: true });
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
 child.on("exit", code => { process.exitCode = code ?? 1; });

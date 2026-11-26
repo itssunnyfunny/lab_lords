@@ -4,13 +4,14 @@ const mocks = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
   findOrganization: vi.fn(),
   findBranches: vi.fn(),
+  branchSnapshot: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getSessionUser: mocks.getSessionUser }));
 vi.mock("@/lib/prisma", () => ({
   prisma: { organization: { findFirst: mocks.findOrganization }, branch: { findMany: mocks.findBranches } },
 }));
-vi.mock("@/analytics/branch.analytics", () => ({ getBranchHealthSnapshot: vi.fn() }));
+vi.mock("@/analytics/branch.analytics", () => ({ getBranchHealthSnapshot: mocks.branchSnapshot }));
 vi.mock("@/analytics/payment.analytics", () => ({ getOverduePaymentsPage: vi.fn(), getPaymentPeriodStats: vi.fn() }));
 vi.mock("@/analytics/trends/branch.trends", () => ({ getBranchOperationalTrend: vi.fn() }));
 vi.mock("@/analytics/trends/payment.trends", () => ({ getPaymentTrend: vi.fn() }));
@@ -31,6 +32,11 @@ function invoke(get: typeof snapshot | typeof trends, organizationId = "org_owne
   });
 }
 
+const branches = {
+  included: [{ id: "branch_standard", name: "Standard branch" }],
+  excluded: [{ id: "branch_basic", name: "Basic branch" }],
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.getSessionUser.mockResolvedValue({ id: "owner_requesting" });
@@ -44,7 +50,13 @@ beforeEach(() => {
   ));
   mocks.findBranches.mockResolvedValue([]);
   vi.spyOn(EntitlementService, "getOrganizationFeatureScope").mockResolvedValue({
-    entitled: true, canWrite: true, branches: null,
+    entitled: true, canWrite: true, branches,
+  });
+  vi.spyOn(EntitlementService, "getEligibleBranchScope").mockResolvedValue(branches);
+  mocks.branchSnapshot.mockResolvedValue({
+    seats: { occupancySnapshot: { seatCount: 0, totalShiftCapacity: 0, totalUsedSlots: 0 } },
+    students: { status: { active: 0, inactive: 0 } },
+    payments: { dueCount: 0, paidCount: 0, overdueCount: 0, dueAmount: 0, paidAmount: 0 },
   });
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -94,16 +106,17 @@ describe("organization analytics owner-access responses", () => {
   it("returns the unchanged authorized snapshot after owner and entitlement checks", async () => {
     const response = await invoke(snapshot);
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ organization: { totalBranches: 0, includedBranches: [], excludedBranches: [] } });
+    expect(await response.json()).toMatchObject({ organization: { totalBranches: 1, includedBranches: branches.included, excludedBranches: branches.excluded } });
     expect(mocks.findOrganization).toHaveBeenCalledWith({
       where: { id: "org_owned", ownerId: "owner_requesting" }, select: { id: true },
     });
     expect(EntitlementService.getOrganizationFeatureScope).toHaveBeenCalledWith(
       "org_owned", "ADVANCED_ANALYTICS"
     );
-    expect(mocks.findBranches).toHaveBeenCalledExactlyOnceWith({where: {organizationId: "org_owned"}, select: {id:true, name:true}});
+    expect(mocks.branchSnapshot).toHaveBeenCalledExactlyOnceWith("branch_standard", expect.any(Date));
+    expect(mocks.findBranches).not.toHaveBeenCalled();
     expect(vi.mocked(EntitlementService.getOrganizationFeatureScope).mock.invocationCallOrder[0])
-      .toBeLessThan(mocks.findBranches.mock.invocationCallOrder[0]);
+      .toBeLessThan(mocks.branchSnapshot.mock.invocationCallOrder[0]);
   });
 
   it("retires the unused trends contract without inventing historical data or changing entitlements", async () => {

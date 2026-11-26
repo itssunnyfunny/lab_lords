@@ -3,14 +3,14 @@ import { prisma } from "../lib/prisma";
 import { PaymentStatus, StudentStatus } from "../app/generated/prisma/enums";
 import { getOverduePayments, getPaymentStats } from "../analytics/payment.analytics";
 import { overdueCutoff } from "../lib/utils/paymentStatus";
+import { createAuditWorkspace } from "./create-audit-workspace";
 
 async function main() {
     console.log("🔍 STARTING ANALYTICS CONSISTENCY AUDIT...");
 
     // SETUP
-    const user = await prisma.user.create({ data: { email: `audit-analytics-${Date.now()}@test.com`, name: "Audit User" } });
-    const org = await prisma.organization.create({ data: { name: "Audit Org", ownerId: user.id } });
-    const branch = await prisma.branch.create({ data: { name: "Audit Branch", organizationId: org.id } });
+    const { org, branch } = await createAuditWorkspace("analytics");
+    const policy = await prisma.organization.findUniqueOrThrow({ where: { id: org.id }, select: { timezone: true, paymentGraceDays: true } });
 
     // Create 3 active students
     const s1 = await prisma.student.create({ data: { branchId: branch.id, name: "S1", status: StudentStatus.ACTIVE, monthlyFee: 1000 } });
@@ -53,7 +53,7 @@ async function main() {
             branchId: branch.id,
             status: PaymentStatus.DUE,
             amount: { gt: 0 },
-            dueDate: { lt: overdueCutoff(org, asOf) },
+            dueDate: { lt: overdueCutoff(policy, asOf) },
         }
     });
     const [queue, stats] = await Promise.all([

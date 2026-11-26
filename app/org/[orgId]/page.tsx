@@ -22,7 +22,7 @@ import { analytics, OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { BranchWithCounts, organizations } from "@/lib/api/organizations";
 import { getUtilizationStatus } from "@/lib/utilizationStatus";
 import { cn } from "@/lib/utils";
-import { failResourceRefresh, resourceData, resourceUpdatedAt, startResourceRefresh } from "@/lib/resourceState";
+import { failResourceRefresh, resourceData, resourceUpdatedAt } from "@/lib/resourceState";
 import type { ResourceState } from "@/types";
 import {
     AlertCircle,
@@ -73,10 +73,8 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     const { orgId } = use(params);
     const billingContext = useBillingExperience();
     const accessReady = !billingContext || !billingContext.loading;
-    const independent = !!billingContext?.organization?.independentBilling;
-    const eligible = independent ? billingContext?.organization?.branches.filter(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")).map(branch => branch.id).sort().join(",") : undefined;
-    const legacyAnalytics = !billingContext || !!billingContext.experience?.entitlements.includes("ADVANCED_ANALYTICS");
-    const analyticsAllowed = independent ? Boolean(eligible) : legacyAnalytics;
+    const eligible = billingContext?.organization?.branches.filter(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")).map(branch => branch.id).sort().join(",");
+    const analyticsAllowed = Boolean(eligible);
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [branchList, setBranchList] = useState<BranchWithCounts[]>([]);
     const [snapshotState, setSnapshotState] = useState<ResourceState<OrganizationAnalyticsSnapshot>>({ status: "loading" });
@@ -101,11 +99,11 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
         const version = ++requestVersion.current;
         setLoading(!hasLoadedRef.current);
         setError(null);
-        setSnapshotState(current => independent ? { status: "loading" } : startResourceRefresh(current));
+        setSnapshotState({ status: "loading" });
 
         const [branchesResult, snapshotResult] = await Promise.allSettled([
             organizations.getBranches(orgId),
-            (independent ? !!eligible : legacyAnalytics) ? analytics.getOrganizationSnapshot(orgId) : Promise.resolve(null),
+            eligible ? analytics.getOrganizationSnapshot(orgId) : Promise.resolve(null),
         ]);
 
         if (version !== requestVersion.current) return;
@@ -134,7 +132,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
         hasLoadedRef.current = true;
         setLoading(false);
-    }, [orgId, accessReady, analyticsAllowed, independent, eligible, legacyAnalytics]);
+    }, [orgId, accessReady, analyticsAllowed, eligible]);
 
     useEffect(() => {
         void loadDashboard();
@@ -521,7 +519,6 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 isOpen={createDialogOpen}
                 onClose={() => setCreateDialogOpen(false)}
                 organizationId={orgId}
-                independentBilling={independent}
                 trialEndsAt={billingContext?.organization?.branches.find(branch => branch.billing?.customerState === "TRIAL_ACTIVE")?.billing?.trialEndsAt}
                 onSuccess={handleBranchCreated}
             />

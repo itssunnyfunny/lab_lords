@@ -22,7 +22,7 @@ for (const key of new Set([...Object.keys(local), ...Object.keys(env)])) if (/^(
 for (const key of ["CLERK_SECRET_KEY", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]) { env[key] = process.env[key] || local[key]; if (!env[key]?.startsWith(key === "CLERK_SECRET_KEY" ? "sk_test_" : "pk_test_")) throw new Error("Existing Clerk development configuration is required"); }
 Object.assign(env, { DATABASE_URL: connection, DIRECT_URL: connection, TEST_DATABASE_URL: connection, TEST_DATABASE_RESET_CONFIRM: proof.database, ACCELERATE_URL: "",
     NEXT_TELEMETRY_DISABLED: "1", RAZORPAY_MODE: "TEST", RAZORPAY_BILLING_WRITES_ENABLED: "false", META_WHATSAPP_MODE: "TEST", WHATSAPP_INTEGRATION_ENABLED: "false",
-    IMPORT_V2_ENABLED: "true", IMPORT_MAX_PLANNED_MUTATIONS: "2000", WORKSPACE_BRANCH_BILLING_V2_ENABLED: "true",
+    IMPORT_V2_ENABLED: "true", IMPORT_MAX_PLANNED_MUTATIONS: "2000",
     PLAYWRIGHT_BASE_URL: `http://localhost:${appPort}`, PLAYWRIGHT_EXISTING_AUTH_STATE: ".clerk/dashboard-owner-auth.json", PLAYWRIGHT_REFRESHED_AUTH_STATE: ".clerk/owner-setup-auth.json",
     WORKFLOW_LOCAL_BASE_URL: `http://localhost:${appPort}`,
 });

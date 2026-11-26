@@ -1,7 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { deriveWorkspaceBillingState } from "@/lib/billingState";
+import { canResumePaymentRecovery, deriveWorkspaceBillingState } from "@/lib/billingState";
 
 const now = new Date("2026-08-03T00:00:00.000Z");
+
+describe("canResumePaymentRecovery", () => {
+  const receipt = {
+    agreementBranchId: "branch", organizationId: "org", organizationSubscriptionId: "local",
+    authorizedProviderMode: "TEST", authorizedRazorpaySubscriptionId: "sub_original",
+    type: "SUBSCRIPTION_AUTHORIZATION", idempotencyKey: "payment-recovery:original",
+    status: "AWAITING_PAYMENT", operationStatus: "AWAITING_PROVIDER_CONFIRMATION", resolvedAt: null, failureCategory: null, sequence: 3,
+  } as const;
+  const current = { id: "local", organizationId: "org", agreementBranchId: "branch", currentAgreementBranchId: "branch",
+    razorpaySubscriptionId: "sub_original", providerMode: "TEST", status: "HALTED" } as const;
+
+  it.each(["HALTED", "PAUSED", "PENDING"] as const)("offers the same unresolved recovery for a %s mandate", status => {
+    expect(canResumePaymentRecovery(receipt, { ...current, status }, "ACTIVE")).toBe(true);
+    expect(canResumePaymentRecovery({ ...receipt, operationStatus: "CHECKOUT_OPEN" }, { ...current, status }, "PENDING_ACTIVATION")).toBe(true);
+  });
+
+  it("keeps initial checkout, in-progress verification, review and terminal receipts out of resume", () => {
+    for (const change of [
+      { idempotencyKey: "subscription-authorization:original" }, { operationStatus: "VERIFYING" },
+      { failureCategory: "MANUAL_REVIEW_REQUIRED" }, { resolvedAt: now }, { status: "SUPERSEDED" },
+    ] as const) expect(canResumePaymentRecovery({ ...receipt, ...change }, current, "ACTIVE")).toBe(false);
+  });
+
+  it("requires the same tenant, agreement, current mandate and provider mode", () => {
+    for (const subscription of [
+      { organizationId: "other" }, { agreementBranchId: "sibling" }, { currentAgreementBranchId: null },
+      { id: "other" }, { razorpaySubscriptionId: "sub_other" }, { providerMode: "LIVE" }, { status: "EXPIRED" },
+    ] as const) expect(canResumePaymentRecovery(receipt, { ...current, ...subscription }, "ACTIVE")).toBe(false);
+    expect(canResumePaymentRecovery(receipt, current, "ARCHIVED")).toBe(false);
+    expect(canResumePaymentRecovery(receipt, current, "REMOVAL_SCHEDULED")).toBe(false);
+  });
+
+  it("can recover a historical browser dismissal only until the branch has a newer intent", () => {
+    const dismissed = { ...receipt, status: "UNDONE", operationStatus: "ABANDONED", failureCategory: "CHECKOUT_ABANDONED",
+      resolvedAt: now } as const;
+    expect(canResumePaymentRecovery(dismissed, current, "ACTIVE", 3)).toBe(true);
+    expect(canResumePaymentRecovery(dismissed, current, "ACTIVE", 4)).toBe(false);
+  });
+});
 
 describe("deriveWorkspaceBillingState", () => {
   it.each(["BASIC", "STANDARD", "PRO"] as const)("grants the selected %s trial only until its original expiry", plan => {

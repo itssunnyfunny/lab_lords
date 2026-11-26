@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   reconcileByOrganization: vi.fn(),
   reconcileProviderSubscription: vi.fn(),
   reconcileCandidateCancellation: vi.fn(),
+  reconcileSourceCancellation: vi.fn(),
+  reconcileProvisioning: vi.fn(),
   failReplacementCheckout: vi.fn(),
   syncAuthorizedAccess: vi.fn(),
   scheduleSourceCancellation: vi.fn(),
@@ -70,6 +72,8 @@ vi.mock("@/services/billingPaymentMethod.service", () => ({
 vi.mock("@/services/billingReplacement.service", () => ({
   BillingReplacementService: {
     reconcileCandidateCancellation: mocks.reconcileCandidateCancellation,
+    reconcileSourceCancellation: mocks.reconcileSourceCancellation,
+    reconcileProvisioning: mocks.reconcileProvisioning,
     failReplacementCheckout: mocks.failReplacementCheckout,
     syncAuthorizedAccess: mocks.syncAuthorizedAccess,
     scheduleSourceCancellation: mocks.scheduleSourceCancellation,
@@ -86,12 +90,16 @@ import {
 } from "@/services/billingDeadline.service";
 
 const now = new Date("2026-09-01T00:00:00.000Z");
+const agreement = {
+  organizationId: "org_deadline", branchId: "branch_deadline",
+  billingMutationLeaseToken: null, billingMutationLeaseUntil: null, branch: { whatsAppMessages: [] },
+};
 
 function replacementChange(overrides: Record<string, unknown> = {}) {
   const id = String(overrides.id ?? "change_1");
   return {
     id,
-    organizationId: `org_${id}`,
+    organizationId: agreement.organizationId,
     sequence: 1,
     status: "AWAITING_PAYMENT",
     operationStatus: "CHECKOUT_OPEN",
@@ -109,7 +117,7 @@ function replacementChange(overrides: Record<string, unknown> = {}) {
     replacementSubscription: {
       id: `candidate_${id}`,
       razorpaySubscriptionId: `sub_candidate_${id}`,
-      pendingReplacementOrganizationId: `org_${id}`,
+      pendingAgreementBranchId: agreement.branchId,
     },
     ...overrides,
   };
@@ -128,7 +136,7 @@ describe("replacement billing deadlines", () => {
     vi.clearAllMocks();
     mocks.expireTrials.mockResolvedValue({ count: 0 });
     mocks.organizationFindMany.mockResolvedValue([]);
-    mocks.agreementFindMany.mockResolvedValue([]);
+    mocks.agreementFindMany.mockResolvedValue([agreement]);
     mocks.subscriptionFindMany.mockResolvedValue([]);
     mocks.archiveBranches.mockResolvedValue({ archived: 0 });
     mocks.billingChangeFindMany.mockResolvedValue([]);
@@ -155,7 +163,7 @@ describe("replacement billing deadlines", () => {
   it("keeps an unbound branch checkout under recovery after its deadline and reports the exact agreement", async () => {
     const organizationId = "org_one";
     const branchId = "branch_pending";
-    mocks.agreementFindMany.mockResolvedValueOnce([{ branchId, organizationId, billingMutationLeaseUntil: null, billingMutationLeaseToken: null }]);
+    mocks.agreementFindMany.mockResolvedValueOnce([{ ...agreement, branchId, organizationId }]);
     mocks.billingChangeFindMany.mockImplementation(async args =>
       args.where?.type === "SUBSCRIPTION_AUTHORIZATION" && args.where.agreementBranchId === branchId
         ? [{ id: "original", organizationId, createdByUserId: "owner", provisioningIntentVersion: 1, organizationSubscription: null }]
@@ -206,6 +214,24 @@ describe("replacement billing deadlines", () => {
     expect(mocks.reconcileCandidateCancellation).toHaveBeenCalledTimes(candidates.length);
     expect(mocks.failReplacementCheckout).not.toHaveBeenCalled();
     expect(result.retriedReplacementCancellations).toBe(candidates.length);
+  });
+
+  it("reconciles a lost replacement create and an uncertain source retirement by their original identities", async () => {
+    const retirement = replacementChange({ id: "original-retirement", status: "FAILED",
+      failureCategory: "MANUAL_REVIEW_REQUIRED", failureCode: "SOURCE_CANCELLATION_OUTCOME_UNKNOWN" });
+    mocks.billingChangeFindMany.mockImplementation(async args => {
+      if (args.where?.agreementBranchId !== agreement.branchId) return [];
+      if (args.where.providerActions?.some?.purpose === "CREATE") {
+        return [{ id: "original-create", organizationId: agreement.organizationId, provisioningIntentVersion: 2 }];
+      }
+      return isReplacementQuery(args) ? [retirement] : [];
+    });
+    const result = await BillingDeadlineService.run(now);
+    expect(result).toMatchObject({ reconciledReplacements: 2, errors: [] });
+    expect(mocks.reconcileProvisioning).toHaveBeenCalledExactlyOnceWith("original-create", now);
+    expect(mocks.reconcileSourceCancellation).toHaveBeenCalledExactlyOnceWith("original-retirement", now);
+    expect(mocks.scheduleSourceCancellation).not.toHaveBeenCalled();
+    expect(mocks.retryMutation).not.toHaveBeenCalled();
   });
 
   it("times out only a candidate that remains unconfirmed", async () => {

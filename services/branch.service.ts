@@ -1,5 +1,5 @@
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
-import { projectedBillableStatuses, TERMINAL_STATUSES } from "@/lib/billingState";
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
 import {
@@ -33,38 +33,14 @@ import {
     includesDefaultPrimaryShiftNames,
 } from "@/services/defaultShifts";
 import { generateSeatLabelsForSeatCount, type SeatNumberingConfig } from "@/lib/seatNumbering";
-import { EntitlementService } from "@/services/entitlement.service";
-import {
-    BillingMutationService,
-    isSafeFailedBillingMutationForLocalUndo,
-} from "@/services/billingMutation.service";
-import { BillingReplacementService } from "@/services/billingReplacement.service";
-import { BillingReconciliationService } from "@/services/billingReconciliation.service";
-import { isReplacementMutationEligible } from "@/services/billingReplacementPolicy";
-import { assertRazorpayBillingWritesEnabled } from "@/lib/billingFeature";
-import {
-    BillingChangeInProgressError,
-    BillingResourceNotFoundError,
-} from "@/lib/billingErrors";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
 import { isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
-import { BillingValidationError } from "@/lib/billingErrors";
+import { BillingResourceNotFoundError, BillingValidationError } from "@/lib/billingErrors";
 import { IndependentBranchLifecycle } from "./independentBranchLifecycle.service";
-import { RazorpayConfigurationError, resolveRazorpayMode } from "@/lib/razorpay";
 import type {
-    BillingChangeType,
     Branch,
-    OrganizationBillingChange,
     Prisma,
 } from "@/app/generated/prisma/client";
-
-function assertCurrentRazorpayMode(subscription: { providerMode: "TEST" | "LIVE" } | null | undefined) {
-    if (subscription && subscription.providerMode !== resolveRazorpayMode()) {
-        throw new RazorpayConfigurationError(
-            "Subscription provider mode does not match current Razorpay credentials"
-        );
-    }
-}
 
 interface CreateBranchForOrgParams {
     futurePlan?: BillingPlanId;
@@ -84,27 +60,6 @@ interface CreateBranchForOrgParams {
     }[];
     idempotencyKey: string;
 }
-
-type BranchMutationReplay = {
-    branch: Branch;
-    change: OrganizationBillingChange;
-};
-
-type AtomicBranchChangeInput = {
-    agreementBranchId?: string;
-    toPlan?: BillingPlanId;
-    organizationId: string;
-    organizationSubscriptionId?: string | null;
-    branchId: string;
-    idempotencyKey: string;
-    type: BillingChangeType;
-    status?: "QUEUED" | "SCHEDULED" | "APPLIED";
-    operationStatus?: "AWAITING_PROVIDER_CONFIRMATION" | "SCHEDULED" | "APPLIED";
-    fromQuantity?: number | null;
-    toQuantity?: number | null;
-    effectiveAt?: Date | null;
-    createdByUserId: string;
-};
 
 const BRANCH_DETAILS_SELECT = {
     id: true,
@@ -254,185 +209,13 @@ function projectBranchDetails(
     return result;
 }
 
-const BRANCH_CREATE_CHANGE_TYPES: readonly BillingChangeType[] = [
-    "TRIAL_SUBSCRIPTION_UPDATE",
-    "QUANTITY_INCREASE",
-    "LEGACY_TRANSITION",
-];
-
-async function lockOrganization(tx: Prisma.TransactionClient, organizationId: string, aggregateOnly = false) {
-    const locked = await tx.$queryRaw<Array<{ id: string; billingModelVersion: string }>>`
-        SELECT "id", "billingModelVersion" FROM "Organization" WHERE "id" = ${organizationId} FOR UPDATE
-    `;
-    if (locked.length === 0) throw new Error("Organization not found");
-    if (aggregateOnly && locked[0].billingModelVersion === "BRANCH_V3") {
-        throw new BillingValidationError("Branch billing changed. Reload Billing before continuing.");
-    }
-}
-
-async function findBranchMutationReplay(
-    tx: Prisma.TransactionClient,
-    input: {
-        organizationId: string;
-        idempotencyKey: string;
-        allowedTypes: readonly BillingChangeType[];
-        branchId?: string;
-        expectedBranch?: {
-            name: string;
-            contactPhone: string;
-            city: string | null;
-            defaultFee: number;
-        };
-    }
-): Promise<BranchMutationReplay | null> {
-    const duplicate = await tx.organizationBillingChange.findUnique({
-        where: { idempotencyKey: input.idempotencyKey },
+async function ownerBranchAgreement(userId: string, branchId: string) {
+    const agreement = await prisma.branchBillingAgreement.findFirst({
+        where: { branchId, branch: { organization: { ownerId: userId } } },
+        select: { branchId: true, organizationId: true, branch: { select: { billingStatus: true } } },
     });
-    if (!duplicate) return null;
-    if (
-        duplicate.organizationId !== input.organizationId
-        || !input.allowedTypes.includes(duplicate.type)
-        || (input.branchId != null && duplicate.branchId !== input.branchId)
-        || !duplicate.branchId
-    ) {
-        throw new Error("Idempotency key was already used for another branch operation");
-    }
-    const branch = await tx.branch.findUnique({ where: { id: duplicate.branchId, organizationId: input.organizationId } });
-    if (!branch) throw new Error("The branch for this idempotent operation no longer exists");
-    if (
-        input.expectedBranch
-        && (
-            branch.name !== input.expectedBranch.name
-            || branch.contactPhone !== input.expectedBranch.contactPhone
-            || (branch.city ?? null) !== input.expectedBranch.city
-            || (branch.defaultFee ?? 0) !== input.expectedBranch.defaultFee
-        )
-    ) {
-        throw new Error("Idempotency key was already used with different branch details");
-    }
-    return { branch, change: duplicate };
-}
-
-async function findLockedBranchMutationReplay(input: {
-    organizationId: string;
-    idempotencyKey: string;
-    allowedTypes: readonly BillingChangeType[];
-    branchId?: string;
-    expectedBranch?: {
-        name: string;
-        contactPhone: string;
-        city: string | null;
-        defaultFee: number;
-    };
-}) {
-    return prisma.$transaction(async tx => {
-        await lockOrganization(tx, input.organizationId);
-        return findBranchMutationReplay(tx, input);
-    });
-}
-
-async function assertNoActiveOrganizationBillingLease(
-    tx: Prisma.TransactionClient,
-    organizationId: string
-) {
-    const organization = await tx.organization.findUniqueOrThrow({
-        where: { id: organizationId },
-        select: { billingMutationLeaseToken: true },
-    });
-    if (!organization.billingMutationLeaseToken) return assertInitialCheckoutResolved(tx, organizationId);
-    const activeChange = await tx.organizationBillingChange.findFirst({
-        where: { organizationId, resolvedAt: null },
-        orderBy: { sequence: "desc" },
-        select: { id: true },
-    });
-    throw new BillingChangeInProgressError(
-        activeChange?.id ?? null,
-        "A provider billing operation is still processing; retry the branch change shortly"
-    );
-}
-
-function unresolvedInitialCheckoutWhere(organizationId: string): Prisma.OrganizationBillingChangeWhereInput {
-    return { organizationId, type: "SUBSCRIPTION_AUTHORIZATION", provisioningIntentVersion: { not: null },
-        organizationSubscriptionId: null, resolvedAt: null };
-}
-
-async function assertInitialCheckoutResolved(tx: Prisma.TransactionClient, organizationId: string) {
-    const pending = await tx.organizationBillingChange.findFirst({
-        where: unresolvedInitialCheckoutWhere(organizationId),
-        select: { id: true },
-    });
-    if (pending) throw new BillingChangeInProgressError(pending.id,
-        "Reconcile the first recurring checkout before changing which branches it covers.");
-}
-
-async function createAtomicBranchChange(
-    tx: Prisma.TransactionClient,
-    input: AtomicBranchChangeInput
-) {
-    if (input.organizationSubscriptionId) {
-        // The idempotent replay check happens before this helper. Any remaining
-        // pending candidate therefore belongs to a different billable intent.
-        await BillingReplacementService.assertNoOpenReplacement(tx, input.organizationId);
-    }
-    const sequenceOwner = input.agreementBranchId ? await tx.branchBillingAgreement.update({
-        where: { branchId_organizationId: { branchId: input.agreementBranchId, organizationId: input.organizationId } },
-        data: { billingMutationSequence: { increment: 1 } },
-        select: { billingMutationSequence: true },
-    }) : await tx.organization.update({
-        where: { id: input.organizationId },
-        data: { billingMutationSequence: { increment: 1 } },
-        select: { billingMutationSequence: true },
-    });
-    const now = new Date();
-    const status = input.status ?? "QUEUED";
-    return tx.organizationBillingChange.create({
-        data: {
-            organizationId: input.organizationId,
-            organizationSubscriptionId: input.organizationSubscriptionId ?? null,
-            branchId: input.branchId,
-            agreementBranchId: input.agreementBranchId,
-            toPlan: input.toPlan,
-            sequence: sequenceOwner.billingMutationSequence,
-            idempotencyKey: input.idempotencyKey,
-            type: input.type,
-            status,
-            operationStatus: input.operationStatus ?? "AWAITING_PROVIDER_CONFIRMATION",
-            fromQuantity: input.fromQuantity ?? null,
-            toQuantity: input.toQuantity ?? null,
-            effectiveAt: input.effectiveAt ?? null,
-            createdByUserId: input.createdByUserId,
-            appliedAt: status === "APPLIED" ? now : null,
-            resolvedAt: status === "APPLIED" ? now : null,
-        },
-    });
-}
-
-async function resumeQueuedBranchMutation(replay: BranchMutationReplay) {
-    if (replay.change.status !== "QUEUED" || !replay.change.organizationSubscriptionId) return replay;
-    try {
-        const processed = await BillingMutationService.processNext(replay.change.organizationId);
-        return processed ? { ...replay, change: processed } : replay;
-    } catch {
-        // The durable operation remains available to the normal retry/deadline flow.
-        return replay;
-    }
-}
-
-function branchCreationResult(replay: BranchMutationReplay) {
-    const providerOperation = replay.change.organizationSubscriptionId != null;
-    const action = !providerOperation
-        ? "NONE" as const
-        : replay.change.replacementSubscriptionId
-          ? "CHECKOUT_REQUIRED" as const
-          : "PROCESSING" as const;
-    return {
-        ...replay.branch,
-        action,
-        billingChangeId: replay.change.id,
-        processingUrl: providerOperation
-            ? `/org/${encodeURIComponent(replay.change.organizationId)}/billing/processing/${encodeURIComponent(replay.change.id)}`
-            : null,
-    };
+    if (!agreement) throw new BillingResourceNotFoundError("Branch not found");
+    return agreement;
 }
 
 const BRANCH_SETTINGS_FIELDS = [
@@ -450,11 +233,7 @@ const BRANCH_SETTINGS_FIELDS = [
 ] as const;
 
 export class BranchService {
-    /**
-     * Shared branch creation logic used by both onboarding and the
-     * "Add New Branch" flow. Creates branch + seats + shifts + staff
-     * in a single atomic transaction.
-     */
+    /** Add a branch, its agreement, setup records and request receipt atomically. */
     static async createBranchForOrg(params: CreateBranchForOrgParams) {
         const { organizationId, userId, name, contactPhone, city, defaultFee, seatCount, shifts, seatNumbering } = params;
         const idempotencyKey = params.idempotencyKey.trim();
@@ -486,77 +265,42 @@ export class BranchService {
             defaultFee: defaultFeeResult.value ?? 0,
         };
 
-        const org = await AccessPolicy.selectOwnerOrganization(userId, organizationId, {
-                billingModelVersion: true,
-                ownerTrialGrant: { select: { status: true, trialEndsAt: true } },
-                subscription: { select: { id: true, status: true, quantity: true, providerMode: true } },
-            });
-        if (!org) throw new OrganizationAccessNotFoundError();
-        if (org.billingModelVersion === "BRANCH_V3" && !isCheckoutBillingPlanId(params.futurePlan)) {
-            throw new BillingValidationError("Choose Basic, Standard or Pro for this branch.");
-        }
-
-        const existingReplay = await findLockedBranchMutationReplay({
-            organizationId,
-            idempotencyKey,
-            allowedTypes: BRANCH_CREATE_CHANGE_TYPES,
-            expectedBranch,
-        });
-        if (existingReplay) {
-            if (existingReplay.change.agreementBranchId && existingReplay.change.toPlan !== params.futurePlan) {
-                throw new BillingValidationError("This request was already used with a different branch plan.");
-            }
-            const resumed = await resumeQueuedBranchMutation(existingReplay);
-            return branchCreationResult(resumed);
-        }
-
-        await EntitlementService.assertCanCreateBranch(organizationId);
-        if (org.billingModelVersion === "WORKSPACE_V2" && org.subscription) {
-            assertRazorpayBillingWritesEnabled(organizationId);
-            assertCurrentRazorpayMode(org.subscription);
-        }
-
-        const created = await prisma.$transaction(async (tx) => {
-            await lockOrganization(tx, organizationId);
-            const replay = await findBranchMutationReplay(tx, {
-                organizationId,
-                idempotencyKey,
-                allowedTypes: BRANCH_CREATE_CHANGE_TYPES,
-                expectedBranch,
-            });
-            if (replay) {
-                if (replay.change.agreementBranchId && replay.change.toPlan !== params.futurePlan) {
-                    throw new BillingValidationError("This request was already used with a different branch plan.");
-                }
-                return replay;
-            }
-
-            const lockedOrg = await AccessPolicy.selectOwnerOrganization(userId, organizationId, {
-                    billingModelVersion: true,
-                    ownerTrialGrant: { select: { status: true, trialEndsAt: true, organizationId: true, ownerId: true } },
-                    subscription: {
-                        select: { id: true, quantity: true, providerPaymentMethod: true },
-                    },
-                }, tx);
-            if (!lockedOrg) throw new OrganizationAccessNotFoundError();
-            const independent = lockedOrg.billingModelVersion === "BRANCH_V3";
-            if (independent && !isCheckoutBillingPlanId(params.futurePlan)) {
+        const futurePlan = params.futurePlan;
+        return prisma.$transaction(async tx => {
+            const locked = await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT "id" FROM "Organization" WHERE "id" = ${organizationId} AND "ownerId" = ${userId}
+                  AND "billingModelVersion" = 'BRANCH_V3' FOR UPDATE
+            `;
+            if (!locked.length) throw new OrganizationAccessNotFoundError();
+            if (!isCheckoutBillingPlanId(futurePlan)) {
                 throw new BillingValidationError("Choose Basic, Standard or Pro for this branch.");
             }
-            if (!independent) await assertNoActiveOrganizationBillingLease(tx, organizationId);
-            const trialActive = lockedOrg.ownerTrialGrant?.status === "ACTIVE"
-                && (!independent || (lockedOrg.ownerTrialGrant.organizationId === organizationId && lockedOrg.ownerTrialGrant.ownerId === userId))
-                && lockedOrg.ownerTrialGrant.trialEndsAt != null
-                && lockedOrg.ownerTrialGrant.trialEndsAt > new Date();
-            const providerOperation = lockedOrg.billingModelVersion === "WORKSPACE_V2"
-                && lockedOrg.subscription != null;
-            const trialReplacementRequired = providerOperation
-                && trialActive
-                && isReplacementMutationEligible({
-                    sourcePaymentMethod: lockedOrg.subscription!.providerPaymentMethod,
-                    mutationType: "TRIAL_SUBSCRIPTION_UPDATE",
-                });
-            const pendingPaidActivation = independent ? !trialActive : providerOperation && (!trialActive || trialReplacementRequired);
+            const previous = await tx.organizationBillingChange.findUnique({
+                where: { idempotencyKey }, include: { branch: true },
+            });
+            if (previous) {
+                const branch = previous.branch;
+                if (!branch || previous.organizationId !== organizationId || branch.organizationId !== organizationId
+                    || previous.agreementBranchId !== branch.id || previous.createdByUserId !== userId
+                    || previous.organizationSubscriptionId || previous.fromQuantity !== 0 || previous.toQuantity !== 1
+                    || !["LEGACY_TRANSITION", "TRIAL_SUBSCRIPTION_UPDATE"].includes(previous.type)) {
+                    throw new BillingValidationError("Request key already used.");
+                }
+                if (previous.toPlan !== futurePlan) {
+                    throw new BillingValidationError("This request was already used with a different branch plan.");
+                }
+                if (branch.name !== expectedBranch.name || branch.contactPhone !== expectedBranch.contactPhone
+                    || branch.city !== expectedBranch.city || branch.defaultFee !== expectedBranch.defaultFee) {
+                    throw new BillingValidationError("Idempotency key was already used with different branch details");
+                }
+                return { ...branch, billingChangeId: previous.id, action: "NONE" as const,
+                    processingUrl: branch.billingStatus === "PENDING_ACTIVATION" ? accountBillingHref(organizationId, branch.id) : null };
+            }
+
+            const now = new Date();
+            const trial = await tx.ownerTrialGrant.findFirst({ where: {
+                organizationId, ownerId: userId, status: "ACTIVE", trialEndsAt: { gt: now },
+            }, select: { id: true } });
 
             // 1. Create the branch
             const branch = await tx.branch.create({
@@ -566,17 +310,13 @@ export class BranchService {
                     contactPhone: contactPhoneResult.value,
                     defaultFee: defaultFeeResult.value ?? 0,
                     organizationId,
-                    billingStatus: pendingPaidActivation ? "PENDING_ACTIVATION" : "ACTIVE",
-                    billingActivatedAt: pendingPaidActivation ? null : new Date(),
+                    billingStatus: trial ? "ACTIVE" : "PENDING_ACTIVATION",
+                    billingActivatedAt: trial ? now : null,
+                    billingAgreement: { create: { selectedPlan: futurePlan, billingMutationSequence: 1 } },
                 },
             });
 
             // 2. Create shifts (custom or defaults)
-            if (independent) {
-                await tx.branchBillingAgreement.create({
-                    data: { organizationId, branchId: branch.id, selectedPlan: params.futurePlan! },
-                });
-            }
             const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
                 ? shiftsResult.value
                 : DEFAULT_PRIMARY_SHIFTS;
@@ -619,36 +359,21 @@ export class BranchService {
                 data: { userId, branchId: branch.id, role: "MANAGER" },
             });
 
-            const toQuantity = independent ? 1 : await tx.branch.count({
-                where: { organizationId, billingStatus: { in: projectedBillableStatuses } },
+            const [change] = await tx.organizationBillingChange.createManyAndReturn({
+                data: {
+                    organizationId, branchId: branch.id, agreementBranchId: branch.id,
+                    idempotencyKey, createdByUserId: userId, sequence: 1,
+                    type: trial ? "TRIAL_SUBSCRIPTION_UPDATE" : "LEGACY_TRANSITION",
+                    status: "APPLIED", operationStatus: "APPLIED", fromQuantity: 0, toQuantity: 1,
+                    toPlan: futurePlan, appliedAt: now, resolvedAt: now, effectiveAt: now,
+                },
+                select: { id: true },
+                skipDuplicates: true,
             });
-            const localChangeType: BillingChangeType = trialActive
-                ? "TRIAL_SUBSCRIPTION_UPDATE"
-                : "LEGACY_TRANSITION";
-            const change = await createAtomicBranchChange(tx, {
-                agreementBranchId: independent ? branch.id : undefined,
-                toPlan: independent ? params.futurePlan : undefined,
-                organizationId,
-                organizationSubscriptionId: providerOperation ? lockedOrg.subscription!.id : null,
-                branchId: branch.id,
-                idempotencyKey,
-                type: providerOperation
-                    ? trialActive ? "TRIAL_SUBSCRIPTION_UPDATE" : "QUANTITY_INCREASE"
-                    : localChangeType,
-                status: providerOperation ? "QUEUED" : "APPLIED",
-                operationStatus: providerOperation ? "AWAITING_PROVIDER_CONFIRMATION" : "APPLIED",
-                fromQuantity: providerOperation ? lockedOrg.subscription!.quantity : Math.max(0, toQuantity - 1),
-                toQuantity,
-                effectiveAt: providerOperation && trialActive
-                    ? lockedOrg.ownerTrialGrant?.trialEndsAt
-                    : new Date(),
-                createdByUserId: userId,
-            });
-            return { branch, change };
+            if (!change) throw new BillingValidationError("Request key already used.");
+            return { ...branch, billingChangeId: change.id, action: "NONE" as const,
+                processingUrl: trial ? null : accountBillingHref(organizationId, branch.id) };
         });
-
-        const resumed = await resumeQueuedBranchMutation(created);
-        return branchCreationResult(resumed);
     }
 
     static async getBranchesByOrganizationId(organizationId: string) {
@@ -743,532 +468,52 @@ export class BranchService {
     }
 
     static async retryPendingActivation(userId: string, branchId: string) {
-        const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: true });
-        if (!branch) throw new BillingResourceNotFoundError("Branch not found");
-        if (branch.organization.billingModelVersion === "BRANCH_V3") {
-            throw new BillingValidationError("Open this branch in Account Billing to resume its subscription.");
-        }
-        if (branch.billingStatus !== "PENDING_ACTIVATION") throw new Error("Branch is not pending activation");
-        assertRazorpayBillingWritesEnabled(branch.organizationId);
-        const change = await prisma.organizationBillingChange.findFirst({
-            where: {
-                branchId,
-                  organizationId: branch.organizationId,
-                  type: { in: ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
-                status: { in: ["FAILED", "AWAITING_PAYMENT"] },
-            },
-            orderBy: { sequence: "desc" },
-        });
-        if (!change) throw new BillingResourceNotFoundError("Failed branch activation operation not found");
-        if (change.replacementSubscriptionId) {
-            return {
-                action: "CHECKOUT_REQUIRED" as const,
-                change,
-                processingUrl: `/org/${encodeURIComponent(branch.organizationId)}/billing/processing/${encodeURIComponent(change.id)}`,
-            };
-        }
-        const retried = await BillingMutationService.retry(change.id);
-        return {
-            action: "PROCESSING" as const,
-            change: retried ?? change,
-            processingUrl: `/org/${encodeURIComponent(branch.organizationId)}/billing/processing/${encodeURIComponent(change.id)}`,
-        };
+        const scope = await ownerBranchAgreement(userId, branchId);
+        if (scope.branch.billingStatus !== "PENDING_ACTIVATION") throw new BillingValidationError("Branch is not pending activation");
+        return { action: "PROCESSING" as const, processingUrl: accountBillingHref(scope.organizationId, branchId) };
     }
 
-    static async discardPendingActivation(userId: string, branchId: string, expectedChangeId?: string) {
-        const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true } } });
-        if (!branch) throw new BillingResourceNotFoundError("Branch not found");
-        if (branch.organization.billingModelVersion === "BRANCH_V3") {
-            return IndependentBranchLifecycle.discard(userId, { organizationId: branch.organizationId, branchId });
-        }
-        if (expectedChangeId && branch.billingStatus === "ACTIVE") {
-            throw new BillingChangeInProgressError(expectedChangeId, "This branch is already active. Schedule its removal from Billing.");
-        }
-        if (branch.billingStatus !== "PENDING_ACTIVATION") throw new Error("Branch is not pending activation");
-
-        await BillingReconciliationService.reconcileByOrganization(branch.organizationId);
-        const refreshed = await prisma.branch.findUnique({ where: { id: branchId } });
-        if (refreshed?.billingStatus === "ACTIVE") {
-            throw new Error("Razorpay already confirmed this branch activation");
-        }
-        const change = await prisma.organizationBillingChange.findFirst({
-            where: {
-                branchId,
-                  organizationId: branch.organizationId,
-                  type: { in: ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
-                status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
-            },
-            orderBy: { sequence: "desc" },
-        });
-        if (!change) throw new Error("Branch activation is still awaiting provider confirmation");
-        if (expectedChangeId && change.id !== expectedChangeId) {
-            throw new BillingChangeInProgressError(expectedChangeId, "The branch activation changed before it could be discarded");
-        }
-        const now = new Date();
-        if (change.replacementSubscriptionId) {
-            await BillingReplacementService.undoReplacement(change.id, now, {
-                branchDisposition: "ARCHIVE",
-            });
-            return { archived: true };
-        }
-        await prisma.$transaction(async tx => {
-            await lockOrganization(tx, branch.organizationId, true);
-            const organization = await AccessPolicy.selectOwnerOrganization(userId, branch.organizationId, {
-                billingMutationLeaseToken: true, billingMutationLeaseUntil: true,
-            }, tx);
-            if (!organization) throw new BillingResourceNotFoundError("Branch not found");
-            if (organization.billingMutationLeaseToken
-                || (organization.billingMutationLeaseUntil && organization.billingMutationLeaseUntil > now)) {
-                throw new Error("Another billing operation is still processing; retry shortly");
-            }
-            await assertInitialCheckoutResolved(tx, branch.organizationId);
-
-            const currentBranch = await tx.branch.findFirst({ where: { id: branchId, organizationId: branch.organizationId } });
-            if (!currentBranch) throw new Error("Branch not found");
-            if (currentBranch.billingStatus === "ACTIVE") {
-                throw new Error("Razorpay already confirmed this branch activation");
-            }
-            if (currentBranch.billingStatus !== "PENDING_ACTIVATION") {
-                throw new Error("Branch is not pending activation");
-            }
-            const currentChange = await tx.organizationBillingChange.findFirst({
-                where: {
-                    branchId,
-                      organizationId: branch.organizationId,
-                      type: { in: ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
-                    status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
-                },
-                orderBy: { sequence: "desc" },
-            });
-            if (currentChange?.id !== change.id) {
-                throw new BillingChangeInProgressError(change.id, "The branch activation changed before it could be discarded");
-            }
-            if (currentChange.replacementSubscriptionId) {
-                throw new Error("Replacement branch activation must be discarded through its mandate operation");
-            }
-              const providerActions = await tx.billingProviderAction.findMany({
-                  where: { organizationId: branch.organizationId, changeId: currentChange.id },
-                  select: { status: true },
-              });
-              const priorAdmission = currentChange.providerMutationAdmittedAt
-                  || await tx.organizationBillingChangeAudit.findFirst({
-                      where: { organizationId: branch.organizationId, changeId: currentChange.id,
-                          outcome: "PROVIDER_MUTATION_ADMITTED" },
-                      select: { id: true },
-                  });
-              if (!["QUEUED", "FAILED"].includes(currentChange.status)
-                  || currentChange.failureCategory === "MANUAL_REVIEW_REQUIRED"
-                  || (currentChange.status === "FAILED"
-                      && !isSafeFailedBillingMutationForLocalUndo(currentChange.failureCategory))
-                  || providerActions.some(action => action.status !== "REJECTED")
-                  || (priorAdmission && providerActions.length === 0)) {
-                  throw new BillingChangeInProgressError(
-                      currentChange.id,
-                      "The provider outcome must be reconciled before this pending branch can be discarded"
-                  );
-              }
-            await tx.organizationBillingChange.update({
-                where: { id: currentChange.id },
-                data: {
-                    status: "SUPERSEDED",
-                    operationStatus: "ABANDONED",
-                    abandonedAt: now,
-                    resolvedAt: now,
-                    lastError: "Pending branch discarded by owner",
-                },
-            });
-            await tx.branch.update({
-                where: { id: branchId },
-                data: { billingStatus: "ARCHIVED", billingArchivedAt: now },
-            });
-        });
-        return { archived: true };
+    static async discardPendingActivation(userId: string, branchId: string) {
+        const { organizationId } = await ownerBranchAgreement(userId, branchId);
+        return IndependentBranchLifecycle.discard(userId, { organizationId, branchId });
     }
 
     static async reactivateArchivedBranch(userId: string, branchId: string, idempotencyKey: string) {
-        const normalizedIdempotencyKey = idempotencyKey.trim();
-        if (!normalizedIdempotencyKey) throw new Error("Idempotency-Key is required");
-        const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true } } });
-        if (!branch) throw new BillingResourceNotFoundError("Branch not found");
-        if (branch.organization.billingModelVersion === "BRANCH_V3") {
-            return IndependentBranchLifecycle.reactivate(userId, { organizationId: branch.organizationId, branchId }, normalizedIdempotencyKey);
-        }
-
-        const existingReplay = await findLockedBranchMutationReplay({
-            organizationId: branch.organizationId,
-            idempotencyKey: normalizedIdempotencyKey,
-            allowedTypes: ["BRANCH_REACTIVATION"],
-            branchId,
-        });
-        if (existingReplay) {
-            const resumed = await resumeQueuedBranchMutation(existingReplay);
-            return {
-                action: resumed.change.replacementSubscriptionId ? "CHECKOUT_REQUIRED" as const : "PROCESSING" as const,
-                change: resumed.change,
-                processingUrl: `/org/${encodeURIComponent(branch.organizationId)}/billing/processing/${encodeURIComponent(existingReplay.change.id)}`,
-            };
-        }
-
-        if (branch.billingStatus !== "ARCHIVED") throw new Error("Only an archived branch can be reactivated");
-        assertRazorpayBillingWritesEnabled(branch.organizationId);
-        await EntitlementService.assertOrganizationWritable(branch.organizationId);
-        const subscription = branch.organization.subscription;
-        if (!subscription) throw new Error("An authorized recurring subscription is required to reactivate this branch");
-        assertCurrentRazorpayMode(subscription);
-
-        const reactivation = await prisma.$transaction(async tx => {
-            await lockOrganization(tx, branch.organizationId, true);
-            const replay = await findBranchMutationReplay(tx, {
-                organizationId: branch.organizationId,
-                idempotencyKey: normalizedIdempotencyKey,
-                allowedTypes: ["BRANCH_REACTIVATION"],
-                branchId,
-            });
-            if (replay) return replay;
-            await assertNoActiveOrganizationBillingLease(tx, branch.organizationId);
-
-            const current = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true } } }, tx);
-            if (!current) throw new BillingResourceNotFoundError("Branch not found");
-            if (current.billingStatus !== "ARCHIVED") {
-                throw new Error("Only an archived branch can be reactivated");
-            }
-            const currentSubscription = current.organization.subscription;
-            if (!currentSubscription) {
-                throw new Error("An authorized recurring subscription is required to reactivate this branch");
-            }
-            const updated = await tx.branch.update({
-                where: { id: branchId },
-                data: { billingStatus: "PENDING_ACTIVATION", billingArchivedAt: null },
-            });
-            const toQuantity = await tx.branch.count({
-                where: { organizationId: branch.organizationId, billingStatus: { in: projectedBillableStatuses } },
-            });
-            const change = await createAtomicBranchChange(tx, {
-                organizationId: branch.organizationId,
-                organizationSubscriptionId: currentSubscription.id,
-                branchId,
-                idempotencyKey: normalizedIdempotencyKey,
-                type: "BRANCH_REACTIVATION",
-                fromQuantity: currentSubscription.quantity,
-                toQuantity,
-                effectiveAt: new Date(),
-                createdByUserId: userId,
-            });
-            return { branch: updated, change };
-        });
-        const resumed = await resumeQueuedBranchMutation(reactivation);
-        return {
-            action: resumed.change.replacementSubscriptionId ? "CHECKOUT_REQUIRED" as const : "PROCESSING" as const,
-            change: resumed.change,
-            processingUrl: `/org/${encodeURIComponent(branch.organizationId)}/billing/processing/${encodeURIComponent(reactivation.change.id)}`,
-        };
+        const { organizationId } = await ownerBranchAgreement(userId, branchId);
+        const key = idempotencyKey.trim();
+        if (!key) throw new BillingValidationError("Idempotency-Key is required");
+        return IndependentBranchLifecycle.reactivate(userId, { organizationId, branchId }, key);
     }
 
-    static async scheduleBillingRemoval(
-        userId: string,
-        branchId: string,
-        idempotencyKey: string
-    ) {
-        const normalizedIdempotencyKey = idempotencyKey.trim();
-        if (!normalizedIdempotencyKey) throw new Error("Idempotency-Key is required");
-        const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true, ownerTrialGrant: true } } });
-        if (!branch) throw new BillingResourceNotFoundError("Branch not found");
-        if (branch.organization.billingModelVersion === "BRANCH_V3") {
-            return IndependentBranchLifecycle.schedule(userId, { organizationId: branch.organizationId, branchId }, normalizedIdempotencyKey);
-        }
-
-        const existingReplay = await findLockedBranchMutationReplay({
-            organizationId: branch.organizationId,
-            idempotencyKey: normalizedIdempotencyKey,
-            allowedTypes: ["BRANCH_REMOVAL"],
-            branchId,
-        });
-        if (existingReplay) {
-            const resumed = await resumeQueuedBranchMutation(existingReplay);
-            return {
-                action: resumed.change.replacementSubscriptionId ? "CHECKOUT_REQUIRED" as const : "PROCESSING" as const,
-                branch: resumed.branch,
-                change: resumed.change,
-            };
-        }
-
-        await EntitlementService.assertBranchWritable(branchId);
-        if (branch.organization.subscription) {
-            assertRazorpayBillingWritesEnabled(branch.organizationId);
-            assertCurrentRazorpayMode(branch.organization.subscription);
-        }
-
-        const removal = await prisma.$transaction(async tx => {
-            await lockOrganization(tx, branch.organizationId, true);
-            const replay = await findBranchMutationReplay(tx, {
-                organizationId: branch.organizationId,
-                idempotencyKey: normalizedIdempotencyKey,
-                allowedTypes: ["BRANCH_REMOVAL"],
-                branchId,
-            });
-            if (replay) return replay;
-            await assertNoActiveOrganizationBillingLease(tx, branch.organizationId);
-
-            const current = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true, ownerTrialGrant: true } } }, tx);
-            if (!current) throw new BillingResourceNotFoundError("Branch not found");
-            if (current.billingStatus !== "ACTIVE") throw new Error("Only an active branch can be removed");
-            const toQuantity = await tx.branch.count({
-                where: {
-                    organizationId: branch.organizationId,
-                    id: { not: branchId },
-                    billingStatus: { in: projectedBillableStatuses },
-                },
-            });
-            if (toQuantity < 1) throw new Error("The final billable branch cannot be removed");
-
-            const trialEndsAt = current.organization.ownerTrialGrant?.status === "ACTIVE"
-                ? current.organization.ownerTrialGrant.trialEndsAt
-                : null;
-            const effectiveAt = trialEndsAt
-                ?? current.organization.subscription?.paidThrough
-                ?? current.organization.subscription?.currentEnd;
-            if (!effectiveAt) throw new Error("A billing-cycle boundary is not available");
-
-            const updated = await tx.branch.update({
-                where: { id: branchId },
-                data: { billingStatus: "REMOVAL_SCHEDULED" },
-            });
-            const providerOperation = current.organization.subscription != null;
-            const change = await createAtomicBranchChange(tx, {
-                organizationId: branch.organizationId,
-                organizationSubscriptionId: current.organization.subscription?.id,
-                branchId,
-                idempotencyKey: normalizedIdempotencyKey,
-                type: "BRANCH_REMOVAL",
-                status: providerOperation ? "QUEUED" : "SCHEDULED",
-                operationStatus: providerOperation ? "AWAITING_PROVIDER_CONFIRMATION" : "SCHEDULED",
-                fromQuantity: current.organization.subscription?.quantity ?? toQuantity + 1,
-                toQuantity,
-                effectiveAt,
-                createdByUserId: userId,
-            });
-            return { branch: updated, change };
-        });
-        const resumed = await resumeQueuedBranchMutation(removal);
-        return {
-            ...resumed,
-            action: resumed.change.organizationSubscriptionId == null
-                ? "NONE" as const
-                : resumed.change.replacementSubscriptionId
-                  ? "CHECKOUT_REQUIRED" as const
-                  : "PROCESSING" as const,
-        };
+    static async scheduleBillingRemoval(userId: string, branchId: string, idempotencyKey: string) {
+        const { organizationId } = await ownerBranchAgreement(userId, branchId);
+        const key = idempotencyKey.trim();
+        if (!key) throw new BillingValidationError("Idempotency-Key is required");
+        return IndependentBranchLifecycle.schedule(userId, { organizationId, branchId }, key);
     }
 
     static async undoBillingRemoval(userId: string, branchId: string, expectedChangeId?: string) {
-        const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true } } });
-        if (!branch) throw new BillingResourceNotFoundError("Branch not found");
-        if (branch.organization.billingModelVersion === "BRANCH_V3") {
-            return IndependentBranchLifecycle.undo(userId, { organizationId: branch.organizationId, branchId }, expectedChangeId);
-        }
-        const change = await prisma.organizationBillingChange.findFirst({
-            where: {
-                id: expectedChangeId,
-                branchId, organizationId: branch.organizationId,
-                type: "BRANCH_REMOVAL",
-                status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
-            },
-            orderBy: { sequence: "desc" },
-        });
-        if (!change) throw new BillingResourceNotFoundError("Scheduled branch removal not found");
-        if (change.status === "PROCESSING") {
-            throw new BillingChangeInProgressError(
-                change.id,
-                "The provider quantity mutation is still processing and cannot be undone"
-            );
-        }
-        if (change.failureCategory === "MANUAL_REVIEW_REQUIRED"
-            || (!change.replacementSubscriptionId
-                && (change.status === "AWAITING_PAYMENT"
-                || (change.status === "FAILED"
-                    && !isSafeFailedBillingMutationForLocalUndo(change.failureCategory))))) {
-            throw new BillingChangeInProgressError(
-                change.id,
-                "The provider quantity must be reconciled before the branch removal can be undone"
-            );
-        }
-        if (change.replacementSubscriptionId) {
-            await BillingReplacementService.undoReplacement(change.id);
-            return { undone: true };
-        }
-        if (change.effectiveAt && change.effectiveAt <= new Date()) {
-            throw new Error("The branch removal can no longer be undone");
-        }
-        if (change.status === "SCHEDULED" && change.organizationSubscriptionId && branch.organization.subscription?.providerPaymentMethod === "CARD") {
-            await BillingMutationService.undoScheduledProviderChange(change.id);
-            return { undone: true };
-        }
-        await prisma.$transaction(async tx => {
-            await lockOrganization(tx, branch.organizationId, true);
-            const currentOrganization = await AccessPolicy.selectOwnerOrganization(userId, branch.organizationId, {
-                billingMutationLeaseToken: true,
-                subscription: { select: { status: true } },
-            }, tx);
-            if (!currentOrganization) throw new BillingResourceNotFoundError("Branch not found");
-            if (currentOrganization.billingMutationLeaseToken) {
-                throw new BillingChangeInProgressError(
-                    change.id,
-                    "A provider quantity mutation is still processing and cannot be undone"
-                );
-            }
-            await assertInitialCheckoutResolved(tx, branch.organizationId);
-            const current = await tx.organizationBillingChange.findFirst({
-                where: { id: change.id, organizationId: branch.organizationId, branchId },
-            });
-            if (!current || current.status !== change.status
-                || current.updatedAt.getTime() !== change.updatedAt.getTime()) {
-                throw new BillingChangeInProgressError(
-                    change.id,
-                    "The branch removal moved while the undo was being claimed"
-                );
-            }
-            if (current.status === "PROCESSING"
-                || current.status === "AWAITING_PAYMENT"
-                || current.failureCategory === "MANUAL_REVIEW_REQUIRED"
-                || (current.status === "FAILED"
-                    && !isSafeFailedBillingMutationForLocalUndo(current.failureCategory))) {
-                throw new BillingChangeInProgressError(
-                    change.id,
-                    "The provider quantity must be reconciled before the branch removal can be undone"
-                );
-            }
-            if (current.effectiveAt && current.effectiveAt <= new Date()) {
-                throw new Error("The branch removal can no longer be undone");
-            }
-            const subscription = currentOrganization.subscription;
-            if (!current.organizationSubscriptionId && subscription && !TERMINAL_STATUSES.has(subscription.status)) {
-                throw new BillingChangeInProgressError(current.id,
-                    "A recurring mandate now covers the remaining branches. Reactivate this branch after its scheduled removal to authorize its fee.");
-            }
-            const undoneAt = new Date();
-            const undone = await tx.organizationBillingChange.updateMany({
-                where: { id: current.id, status: current.status, updatedAt: current.updatedAt },
-                data: {
-                    status: "UNDONE",
-                    operationStatus: "ABANDONED",
-                    undoneAt,
-                    resolvedAt: undoneAt,
-                },
-            });
-            if (undone.count !== 1) {
-                throw new BillingChangeInProgressError(
-                    change.id,
-                    "The branch removal moved while the undo was being finalized"
-                );
-            }
-            const restored = await tx.branch.updateMany({
-                where: {
-                    id: branchId,
-                    organizationId: branch.organizationId,
-                    billingStatus: "REMOVAL_SCHEDULED",
-                },
-                data: { billingStatus: "ACTIVE" },
-            });
-            if (restored.count !== 1) {
-                throw new BillingChangeInProgressError(
-                    change.id,
-                    "The branch state moved while the undo was being finalized"
-                );
-            }
-        });
-        return { undone: true };
+        const { organizationId } = await ownerBranchAgreement(userId, branchId);
+        return IndependentBranchLifecycle.undo(userId, { organizationId, branchId }, expectedChangeId);
     }
 
     static async archiveDueBillingRemovals(now = new Date()) {
         const due = await prisma.organizationBillingChange.findMany({
-            where: { type: "BRANCH_REMOVAL", status: "SCHEDULED", effectiveAt: { lte: now } },
+            where: { agreementBranchId: { not: null }, type: "BRANCH_REMOVAL", status: "SCHEDULED", effectiveAt: { lte: now } },
             select: { id: true, organizationId: true, agreementBranchId: true },
         });
         let archived = 0;
-        const holds = new Map<string, string>();
-        const branchHolds: Array<{ organizationId: string; branchId: string; message: string }> = [];
+        const errors: Array<{ organizationId: string; branchId: string; message: string }> = [];
         for (const candidate of due) {
-            if (candidate.agreementBranchId) {
-                try {
-                    if (await IndependentBranchLifecycle.archive({ organizationId: candidate.organizationId, branchId: candidate.agreementBranchId }, candidate.id, now)) archived++;
-                } catch (error) {
-                    branchHolds.push({ organizationId: candidate.organizationId, branchId: candidate.agreementBranchId,
-                        message: error instanceof BillingValidationError ? error.message : "Independent branch archival needs reconciliation." });
-                }
-                continue;
+            const { organizationId, agreementBranchId: branchId } = candidate;
+            if (!branchId) continue;
+            try {
+                if (await IndependentBranchLifecycle.archive({ organizationId, branchId }, candidate.id, now)) archived++;
+            } catch (error) {
+                errors.push({ organizationId, branchId, message: error instanceof BillingValidationError
+                    ? error.message : "Branch archival needs reconciliation." });
             }
-            const applied = await prisma.$transaction(async tx => {
-                await lockOrganization(tx, candidate.organizationId, true);
-                const change = await tx.organizationBillingChange.findFirst({
-                    where: { id: candidate.id, organizationId: candidate.organizationId, status: "SCHEDULED", effectiveAt: { lte: now } },
-                    include: {
-                        organizationSubscription: true,
-                        organization: { select: { subscription: { select: { id: true, status: true, quantity: true } } } },
-                    },
-                });
-                if (!change?.branchId) return false;
-                const projected = await tx.branch.count({
-                    where: { organizationId: candidate.organizationId, billingStatus: { in: projectedBillableStatuses } },
-                });
-                // Older schedules may have selected every branch or been followed by an oversized initial mandate.
-                if (projected < 1) return "Scheduled removals leave no billable branch. Review the affected branch schedules.";
-                const source = change.organizationSubscription;
-                if (source && (change.toQuantity !== source.quantity
-                    || !source.lastReconciledAt || source.lastReconciledAt < (change.effectiveAt ?? now))) return false;
-                const current = change.organization.subscription;
-                if (!source && current && !TERMINAL_STATUSES.has(current.status)) {
-                    // FIFO keeps these changes off the mandate until this removal archives.
-                    // Their branch statuses already contribute to the local projection.
-                    const laterBranchChanges = await tx.organizationBillingChange.groupBy({
-                        by: ["type"],
-                        where: {
-                            organizationId: candidate.organizationId, organizationSubscriptionId: current.id,
-                            branch: { organizationId: candidate.organizationId }, sequence: { gt: change.sequence },
-                            status: "QUEUED", resolvedAt: null,
-                            type: { in: ["BRANCH_REMOVAL", "BRANCH_REACTIVATION", "QUANTITY_INCREASE", "TRIAL_SUBSCRIPTION_UPDATE"] },
-                        },
-                        _count: { _all: true },
-                    });
-                    const expectedQuantity = laterBranchChanges.reduce((count, group) =>
-                        group.type === "BRANCH_REMOVAL" ? count + group._count._all : count - group._count._all, projected);
-                    if (current.quantity !== expectedQuantity) {
-                        return "A trial branch removal conflicts with the current mandate quantity. Reconcile the mandate before archiving.";
-                    }
-                }
-                if (!source) {
-                    // A lost create response can leave a provider mandate without a local subscription row.
-                    const unresolved = await tx.organizationBillingChange.findFirst({
-                        where: {
-                            ...unresolvedInitialCheckoutWhere(candidate.organizationId),
-                            OR: [{ authorizedQuantity: null }, { authorizedQuantity: { not: projected } }],
-                        },
-                        select: { id: true },
-                    });
-                    if (unresolved) return "The unresolved first checkout quantity needs reconciliation before archiving.";
-                }
-                const archivedBranch = await tx.branch.updateMany({
-                    where: { id: change.branchId, organizationId: candidate.organizationId, billingStatus: "REMOVAL_SCHEDULED" },
-                    data: { billingStatus: "ARCHIVED", billingArchivedAt: now },
-                });
-                if (!archivedBranch.count) return false;
-                await tx.organizationBillingChange.update({
-                    where: { id: change.id },
-                    data: {
-                        status: "APPLIED",
-                        operationStatus: "APPLIED",
-                        appliedAt: now,
-                        providerConfirmedAt: now,
-                        resolvedAt: now,
-                    },
-                });
-                return true;
-            });
-            if (typeof applied === "string") holds.set(candidate.organizationId, applied);
-            else if (applied) archived += 1;
         }
-        return branchHolds.length || holds.size
-            ? { archived, errors: [...branchHolds, ...Array.from(holds, ([organizationId, message]) => ({ organizationId, message }))] }
-            : { archived };
+        return errors.length ? { archived, errors } : { archived };
     }
 }
-

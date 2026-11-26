@@ -6,7 +6,6 @@ import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidatio
 import { BillingReadOnlyError, SubscriptionEntitlementError } from "@/services/entitlement.service";
 import { BillingWritesDisabledError } from "@/lib/billingFeature";
 import { BillingChangeInProgressError } from "@/lib/billingErrors";
-import { BillingService } from "@/services/billing.service";
 import { BillingExperienceService } from "@/services/billingExperience.service";
 import { projectDirectoryBilling } from "@/services/branchBillingDirectory.service";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
@@ -32,10 +31,9 @@ export async function GET(_req: Request, { params }: Params) {
             );
         }
 
-        const org = await OrganizationService.getOrganizationForOwnerAccess(orgId, user.id);
+        await OrganizationService.getOrganizationForOwnerAccess(orgId, user.id);
 
         const branches = await BranchService.getBranchesByOrganizationId(orgId);
-        if (org.billingModelVersion !== "BRANCH_V3") return NextResponse.json(branches);
         return NextResponse.json(await Promise.all(branches.map(async branch => ({
             ...branch, billing: projectDirectoryBilling(await BillingExperienceService.getBillingExperience(orgId, user.id, branch.id)),
         }))));
@@ -70,7 +68,7 @@ export async function POST(req: Request, { params }: Params) {
         }
 
         const body = await req.json();
-        if (body.futurePlan !== undefined && !isCheckoutBillingPlanId(body.futurePlan)) {
+        if (!isCheckoutBillingPlanId(body.futurePlan)) {
             return NextResponse.json({ error: "Choose Basic, Standard or Pro for this branch." }, { status: 400 });
         }
 
@@ -87,11 +85,7 @@ export async function POST(req: Request, { params }: Params) {
             idempotencyKey,
             futurePlan: body.futurePlan,
         });
-        const checkout = branch.action === "CHECKOUT_REQUIRED" && branch.billingChangeId
-            ? (await BillingService.getBillingOperation(user.id, orgId, branch.billingChangeId)).checkout
-            : undefined;
-
-        return NextResponse.json({ ...branch, ...(checkout ? { checkout } : {}) }, {
+        return NextResponse.json(branch, {
             status: branch.billingStatus === "PENDING_ACTIVATION" ? 202 : 201,
         });
     } catch (error) {

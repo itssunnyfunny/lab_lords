@@ -22,6 +22,7 @@ export type ReplacementMutationType = typeof REPLACEMENT_MUTATION_TYPES[number];
 export type ReplacementPaymentMethod = "CARD" | "UPI" | "EMANDATE";
 
 export type ReplacementEligibilityInput = {
+  agreementBranchId?: string | null;
   sourcePaymentMethod: string | null | undefined;
   mutationType: string;
 };
@@ -71,18 +72,20 @@ export function addCalendarMonthsUtc(anchor: Date, months: number) {
 }
 
 /** Returns the first billing boundary with at least the configured lead time. */
-export function getSafeReplacementCycleBoundary(input: {
+type CycleBoundaryInput = {
   now: Date;
   currentCycleEnd: Date;
   intervalMonths: number;
-}) {
+};
+
+function firstBoundaryAfterLead(input: CycleBoundaryInput, leadMs: number) {
   assertValidDate(input.now, "now");
   assertValidDate(input.currentCycleEnd, "currentCycleEnd");
   if (!Number.isInteger(input.intervalMonths) || input.intervalMonths < 1) {
     throw new RangeError("intervalMonths must be a positive integer");
   }
 
-  const earliestSafeStart = input.now.getTime() + REPLACEMENT_SAFE_CYCLE_LEAD_MS;
+  const earliestSafeStart = input.now.getTime() + leadMs;
   let elapsedMonths = 0;
   let boundary = new Date(input.currentCycleEnd.getTime());
 
@@ -94,6 +97,19 @@ export function getSafeReplacementCycleBoundary(input: {
   }
 
   return boundary;
+}
+
+export function getSafeReplacementCycleBoundary(input: CycleBoundaryInput) {
+  return firstBoundaryAfterLead(input, REPLACEMENT_SAFE_CYCLE_LEAD_MS);
+}
+
+/** Allow an hour for customer authorization, then two days for the hourly
+ * worker to verify retirement of the source before the target's first debit.
+ * A renewal already inside this window stays on the original mandate. */
+export function getBranchReplacementSchedule(input: CycleBoundaryInput) {
+  const retirementWindow = 48 * HOUR_MS;
+  const effectiveAt = firstBoundaryAfterLead(input, retirementWindow + HOUR_MS);
+  return { effectiveAt, undoCutoffAt: new Date(effectiveAt.getTime() - retirementWindow) };
 }
 
 export function getReplacementUndoCutoffAt(safeCycleBoundary: Date) {
@@ -137,7 +153,7 @@ export function isReplacementMutationEligible(input: ReplacementEligibilityInput
  * separately gated UPI/eMandate or proactive payment-method-switching rollout. */
 export function isReplacementMutationEnabled(input: ReplacementEligibilityInput, multiMethodEnabled: boolean) {
   return isReplacementMutationEligible(input)
-    && (multiMethodEnabled || (normalizeReplacementPaymentMethod(input.sourcePaymentMethod) === "CARD"
+    && (Boolean(input.agreementBranchId) || multiMethodEnabled || (normalizeReplacementPaymentMethod(input.sourcePaymentMethod) === "CARD"
       && input.mutationType !== "PAYMENT_METHOD_REPLACEMENT"));
 }
 

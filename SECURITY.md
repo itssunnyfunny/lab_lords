@@ -311,7 +311,7 @@ authentication boundaries, not open application routes.
   a failed receipt-confirmation fence; late timeout finalization must not leave
   the same recovered action unresolved. Independent action purposes retain their
   own evidence requirements. Ordinary later mutations still require fresh
-  authorization, mode, organization lease and attempt checks.
+  authorization, mode, branch agreement lease and attempt checks.
 
 - Organization billing APIs are owner-only.
 - Browser success, client callbacks, webhook event type, and provider
@@ -323,13 +323,13 @@ authentication boundaries, not open application routes.
   one applied immutable commercial intent and its exact paid invoice/captured
   payment tuple. A raw future date, `ACTIVE`, or a signed webhook payload field
   is not paid evidence.
-- Legacy and Workspace Billing V2 subscriptions use that same normal paid-
-  period boundary. A legacy record without exact current evidence receives the
-  writable Basic fallback; a V2 record without it fails closed to read-only
-  Basic. Owner trials and explicitly authorized bounded replacement access are
-  separate grants and must not be folded into the normal paid resolver.
+- An active branch agreement needs its own exact current paid period, eligible
+  original owner trial or bounded authorization grant for operational write access.
+  A retained, explicitly linked coverage period from a retired mandate must
+  match the tenant, provider mode and original settlement through its cutoff.
+  A historical plan label or sibling agreement supplies no branch entitlement.
 - Checkout callbacks must verify their server-side signature, retrieve
-  provider-authoritative objects, and match the expected organization intent,
+  provider-authoritative objects, and match the expected organization and branch agreement intent,
   subscription, payment, plan, quantity, offer, amount, currency, billing
   period, mode, and settlement state through the shared exact-commercial-
   evidence validator.
@@ -368,7 +368,8 @@ authentication boundaries, not open application routes.
   unfenced worker has terminated before promoting the token-fenced worker.
   Additive schema compatibility alone never authorizes overlapping old/new
   finalization protocols; rollback uses the same hold-and-drain boundary.
-- A valid legacy or V2 webhook is an identity-scoped reconciliation trigger.
+- A valid webhook triggers reconciliation for the original branch agreement or
+  historical aggregate receipt.
   Do not copy status, customer, plan, quantity, period, or payment state from
   the signed payload into entitlement state; fetch and reconcile the matching
   provider subscription, invoice, and payment evidence first.
@@ -416,7 +417,7 @@ authentication boundaries, not open application routes.
   outcomes and unresolved old attempts cannot create again. Discovery absence
   is not proof of rejection; duplicates require review without cancellation.
 - Source cancellation records an immutable admission audit under the exact
-  organization lease and processing attempt. Candidate authorization or
+  branch agreement lease and processing attempt. Candidate authorization or
   settlement cannot resolve that source action or erase its replay fence.
   Source recovery uses read-only terminal truth or a durably confirmed
   cancellation response plus matching current scheduled state. A scheduled-change
@@ -425,13 +426,14 @@ authentication boundaries, not open application routes.
   uses the same durable operation and retains the client's key and history.
 - Authorized replacement access must remain provisional and fail closed when
   lineage, plan, quantity, authorization, or grace-period checks fail.
-- Billing feature switches and Live canaries must default to held behavior.
-  Disabling billing writes is not assumed to stop signed webhook reconciliation
-  or already-running work.
+- The installation-wide billing write pause must block new outbound billing
+  mutations. Signed webhooks, existing bank mandates and in-flight work can
+  still affect provider or local state. Recurring-method configuration is
+  independent of the write pause.
 - Ambiguous provider state requires reconciliation and human review. Never
   automatically refund, cancel, recreate, resubmit, or overwrite ambiguous
   billing state. Provider-mutation success and failure finalization must match
-  the exact organization lease and attempt identity. Expired in-flight work is
+  the exact branch agreement lease and attempt identity. Expired in-flight work is
   quarantined, not requeued. Reconciliation is read-first: it may adopt an exact
   provider target without another write, but a second mutation is allowed only
   after a definite rejection or pre-provider failure and a fresh source-state
@@ -443,17 +445,18 @@ authentication boundaries, not open application routes.
   object, or issue another charge. Exact provider evidence may be adopted only
   with an exact local state fence and a typed, audited resolution outcome.
 - General billing undo must reject an in-flight or unresolved provider outcome.
-  Branch-removal undo may restore the branch only atomically with durable,
-  provider-confirmed cancellation of the scheduled quantity change.
+  Before the stored cutoff, branch-removal Undo can restore the branch and
+  withdraw its still-queued, unadmitted cancellation in one transaction.
+  A dispatched or unresolved cancellation requires reconciliation.
 - Legacy paid-entitlement transition is a privileged reconciliation operation,
   not a status backfill. It must default to dry-run, require an explicit
   organization allowlist and provider mode, bind apply to the exact deployment
   target and database fingerprint, re-read provider evidence before applying a
   fresh proposal hash, make no Razorpay mutation, and record unresolved or
   ambiguous evidence as manual review without advancing entitlement.
-- Workspace V2 promotion must take the organization mutation lock, reload the
-  current subscription/evidence, branch count, billing model, and mutation
-  sequence, and rerun every promotion guard before writing the V2 marker.
+- Structural initialization locks the tenant and creates missing agreements
+  without copying paid evidence. A successor closure receipt requires an exact,
+  provider-free scheduled operation. Uncertain obligations require review.
 - Replacement-candidate cancellation is a provider mutation with the same lease,
   attempt, stale-worker, and ambiguity rules. A timeout, malformed terminal
   response, or expired cancellation lease remains manual-review state. While it
@@ -876,10 +879,6 @@ Treat these as review context and remediation candidates, not accepted risks:
   upload or malware-scanning controls;
 - multiple API handlers return raw `Error.message`, which can disclose sensitive
   implementation detail;
-- whether daily operational-payment generation should respect branch or
-  organization writability is an unresolved product decision. Current behaviour
-  must not be treated as accepted until documented in an ADR or domain
-  invariant;
 - the repository defines no centralized security log sink, alert routing,
   health/readiness endpoint, incident contact, or monitoring-retention policy;
 - repository configuration does not establish whether CSP, HSTS, WAF, or
@@ -958,6 +957,6 @@ BASIC/ STANDARD/ PRO are distinct identities. STANDARD and PRO grant staff, adva
 
 ## Independent agreement isolation — local implementation, 25 November 2026
 
-In BRANCH_V3 an owner billing command binds the authenticated owner, organization and selected branch agreement before it can admit, retry or reconcile provider work. Compare the agreement on the mandate, replacement, frozen commercial intent, action, invoice and history. A same-organization sibling is outside the command's authority. Preserve mode, signatures, durable admission and exact settlement checks. Individual branch charges never authorize an aggregate entitlement.
+Every customer billing command binds the authenticated owner, organization and selected branch agreement before it can admit, retry or reconcile provider work. Compare the agreement on the mandate, replacement, frozen commercial intent, action, invoice and history. A same-organization sibling is outside the command's authority. Preserve mode, signatures, durable admission and exact settlement checks. Individual branch charges never authorize an aggregate entitlement.
 
 Use current branch capability and lifecycle at final send admission. A downgrade may suppress only work that remains safely unsubmitted. Preserve uncertain and accepted sends for real-outcome reconciliation. Directory and report access remain subject to exact membership or ownership. See [independent branch rollout and recovery](docs/billing/independent-branch-rollout.md).

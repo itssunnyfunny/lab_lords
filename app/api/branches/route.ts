@@ -14,7 +14,6 @@ import { generateSeatLabelsForSeatCount, validateSeatNumberingConfig } from "@/l
 import { BillingReadOnlyError, SubscriptionEntitlementError } from "@/services/entitlement.service";
 import { BillingWritesDisabledError } from "@/lib/billingFeature";
 import { BillingChangeInProgressError } from "@/lib/billingErrors";
-import { BillingService } from "@/services/billing.service";
 import { billingHttpStatus } from "@/lib/billingHttp";
 import { isCheckoutBillingPlanId } from "@/lib/billingPlans";
 
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
         }
         await OrganizationService.getOrganizationForOwnerAccess(organizationId, user.id);
-        if (body.futurePlan !== undefined && !isCheckoutBillingPlanId(body.futurePlan)) {
+        if (!isCheckoutBillingPlanId(body.futurePlan)) {
             return NextResponse.json({ error: "Choose Basic, Standard or Pro for this branch." }, { status: 400 });
         }
         const idempotencyKey = req.headers.get("idempotency-key")?.trim();
@@ -66,7 +65,7 @@ export async function POST(req: Request) {
         if (!shiftsResult.ok) return NextResponse.json({ error: shiftsResult.error }, { status: 400 });
 
         const branch = await BranchService.createBranchForOrg({
-            ...(body.futurePlan ? { futurePlan: body.futurePlan } : {}),
+            futurePlan: body.futurePlan,
             organizationId,
             userId: user.id,
             name: nameResult.value,
@@ -78,16 +77,8 @@ export async function POST(req: Request) {
             shifts: shiftsResult.value,
             idempotencyKey,
         });
-        const checkout = branch.action === "CHECKOUT_REQUIRED" && branch.billingChangeId
-            ? (await BillingService.getBillingOperation(
-                user.id,
-                organizationId,
-                branch.billingChangeId
-            )).checkout
-            : undefined;
-
         return NextResponse.json(
-            { ...branch, ...(checkout ? { checkout } : {}) },
+            branch,
             { status: branch.billingStatus === "PENDING_ACTIVATION" ? 202 : 201 }
         );
     } catch (error: unknown) {

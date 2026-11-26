@@ -23,7 +23,6 @@ import { BranchService } from "@/services/branch.service";
 describe("OnboardingService Integration", () => {
   afterAll(async () => { await disconnectDatabase(); });
   beforeEach(async () => {
-    vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "true");
     await resetDatabase();
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -40,14 +39,6 @@ describe("OnboardingService Integration", () => {
   // ─── createNetwork ────────────────────────────────────────────────────────
 
   describe("createNetwork", () => {
-    it("rejects creation while V2 onboarding is held without writing a legacy workspace", async () => {
-      const user = await createUser();
-      vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "false");
-      await expect(OnboardingService.createNetwork(baseParams(user.id))).rejects.toThrow(/temporarily unavailable/i);
-      expect(await testPrisma.organization.count()).toBe(0);
-      expect(await testPrisma.branch.count()).toBe(0);
-    });
-
     it("creates org and branch atomically — correct ownership chain", async () => {
       const user = await createUser();
       const result = await OnboardingService.createNetwork(baseParams(user.id));
@@ -57,8 +48,9 @@ describe("OnboardingService Integration", () => {
       expect(org.ownerId).toBe(user.id);
       expect(branch.organizationId).toBe(org.id);
       expect(org.name).toBe("Bright Academy");
-      expect(org.selectedPostTrialPlan).toBe("BASIC");
-      expect(org.billingModelVersion).toBe("WORKSPACE_V2");
+      expect(org.selectedPostTrialPlan).toBeNull();
+      expect(await testPrisma.branchBillingAgreement.findUniqueOrThrow({ where: { branchId: branch.id } })).toMatchObject({ organizationId: org.id, selectedPlan: "BASIC" });
+      expect(org.billingModelVersion).toBe("BRANCH_V3");
       const trial = await testPrisma.ownerTrialGrant.findUnique({ where: { ownerId: user.id } });
       expect(trial?.organizationId).toBe(org.id);
       expect(trial?.status).toBe("ACTIVE");
@@ -243,7 +235,6 @@ describe("OnboardingService Integration", () => {
         testPrisma.ownerTrialGrant.findUnique({ where: { ownerId: owner.id } }),
         testPrisma.onboardingRequest.findMany(),
       ]);
-      vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "false");
       expect(await OnboardingService.createNetwork(command)).toEqual(result);
       const after = await Promise.all([
         testPrisma.user.findUnique({ where: { id: owner.id } }),
@@ -266,13 +257,13 @@ describe("OnboardingService Integration", () => {
       const sibling = await BranchService.createBranchForOrg({
         organizationId: result.org.id,
         userId: owner.id,
-        name: "Continuing Hall",
+        name: "Continuing Hall", futurePlan: "STANDARD",
         contactPhone: command.ownerPhone,
         idempotencyKey: randomUUID(),
       });
 
       const scheduled = await BranchService.scheduleBillingRemoval(owner.id, result.branch.id, randomUUID());
-      expect(scheduled).toMatchObject({ action: "NONE", change: { status: "SCHEDULED", effectiveAt: trial.trialEndsAt } });
+      expect(scheduled).toMatchObject({ action: "PROCESSING", change: { status: "SCHEDULED", effectiveAt: trial.trialEndsAt } });
       const archived = await BranchService.archiveDueBillingRemovals(new Date(trial.trialEndsAt!.getTime() + 1));
       expect(archived).toEqual({ archived: 1 });
       await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } }))
@@ -285,7 +276,6 @@ describe("OnboardingService Integration", () => {
         testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } }),
       ]);
       expect(beforeReplay).toEqual([1, 2, 1, 1]);
-      vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "false");
       expect(await OnboardingService.createNetwork(command)).toEqual(result);
       expect(await testPrisma.onboardingRequest.findUniqueOrThrow({ where: receiptWhere })).toEqual(receipt);
       expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } }))

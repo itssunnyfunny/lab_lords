@@ -1,4 +1,4 @@
-/** Real Razorpay TEST, pre-authorization only. Run after migrating a new local
+/** Real Razorpay Test checkout and readback. Run after migrating a new local
  * template0 database named lab_lords_branch_plans_preauth_test. --serve opens a
  * loopback-only test server for manual authorization of the original operations. --inspect
  * re-fetches and reconciles the same subscriptions, including provider expiry.
@@ -141,10 +141,17 @@ async function main() {
           && actions[0].providerMode === "TEST" && actions[0].changeId === sub.notes.billing_change_id, "provider binding mismatch");
         stage = plan + " reconciliation";
         const result = await scope(() => BillingReconciliationService.reconcileProviderSubscription(sub.id));
+        const capturedInvoices = await prisma.organizationSubscriptionInvoice.count({ where: {
+          ...where, providerMode: "TEST", organizationSubscriptionId: local.id,
+          razorpaySubscriptionId: sub.id, razorpayPlanId: sub.plan_id, providerQuantity: 1,
+          commercialEvidenceVersion: 1, paymentCaptured: true, evidenceConfirmedAt: { not: null },
+          razorpayPaymentId: { not: null }, periodEnd: { not: null },
+        } });
         const writable = (await EntitlementService.getBranchProfile(branchId)).canWrite;
         check(!unpaid || !writable, "unpaid branch gained access");
         process.stdout.write(JSON.stringify({ plan, subunits: mapping.amountSubunits, quantity: 1, mode: "TEST", status: sub.status,
-          paidCount: sub.paid_count, evidenceKind: result.evidenceKind, scopeVerified: true, checkoutReplayVerified: prepare, distinctCreateActions: actions.length, writable,
+          paidCount: sub.paid_count, capturedInvoices, paidThrough: result.subscription.paidThrough?.toISOString() ?? null,
+          evidenceKind: result.evidenceKind, scopeVerified: true, checkoutReplayVerified: prepare, distinctCreateActions: actions.length, writable,
           expiresAt: sub.expire_by ? new Date(sub.expire_by * 1000).toISOString() : null }) + "\n");
       }
       if (serve) {

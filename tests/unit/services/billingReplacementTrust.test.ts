@@ -1,3 +1,4 @@
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -220,6 +221,7 @@ function organization() {
 
 describe("replacement billing trust and race contracts", () => {
   beforeEach(() => {
+    registerHistoricalBillingFixture("org_1");
     vi.clearAllMocks();
     mocks.getOrganizationForOwnerAccess.mockResolvedValue(organization());
     mocks.organizationUpdate.mockResolvedValue({});

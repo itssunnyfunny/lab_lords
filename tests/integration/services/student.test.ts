@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { StudentService } from "@/services/student.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser, createPayment } from "@/tests/factories";
+import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser, createPayment, createBranch } from "@/tests/factories";
 import type { DueResolution } from "@/types";
 import { reviewFee } from "@/lib/feeBalance";
 import { studentRejoiningToday } from "@/utils/studentRejoiningDate";
@@ -73,12 +73,7 @@ describe("StudentService Integration", () => {
 
     it("allows the same student name and phone in a different branch", async () => {
       const { user, branch } = await createTestWorld();
-      const otherBranch = await testPrisma.branch.create({
-        data: {
-          organizationId: branch.organizationId,
-          name: "Second Branch",
-        },
-      });
+      const otherBranch = await createBranch({ organizationId: branch.organizationId, name: "Second Branch" });
 
       const first = await StudentService.createStudent(user.id, branch.id, {
         name: "Riya Sharma",

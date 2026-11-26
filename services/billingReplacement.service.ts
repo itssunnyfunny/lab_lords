@@ -27,6 +27,7 @@ import {
 } from "@/services/billingCommercialEvidence.service";
 import {
   addCalendarMonthsUtc,
+  getBranchReplacementSchedule,
   getReplacementChargeGraceEndsAt,
   getReplacementUndoCutoffAt,
   getSafeReplacementCycleBoundary,
@@ -558,6 +559,9 @@ async function finalizeCandidateCancellation(
   if (finalized.count !== 1) {
     throw new Error("Replacement cancellation attempt changed before finalization");
   }
+  if (undoRequested && change.agreementBranchId && change.fromPlan && change.fromPlan !== change.toPlan) {
+    await billingCoordinator(tx).update({ where: { id: change.organizationId }, data: { selectedPostTrialPlan: change.fromPlan } });
+  }
   await confirmReconciledBillingProviderAction(tx, { organizationId: change.organizationId,
     identity: change.id, purpose: "CANCEL_CANDIDATE", provider: input.provider });
   if (change.failureCategory === "MANUAL_REVIEW_REQUIRED"
@@ -645,6 +649,7 @@ async function quarantineCandidateCancellationAttempt(
       },
       data: {
         status: "FAILED",
+        operationStatus: input.processingCode === SOURCE_CANCELLATION_PROCESSING_CODE ? "FAILED" : undefined,
         failureCategory: "MANUAL_REVIEW_REQUIRED",
         failureCode: input.outcomeUnknownCode,
         lastError: `Replacement cancellation outcome is unknown: ${cancellationErrorMessage(input.error)}`,
@@ -892,13 +897,16 @@ export class BillingReplacementService {
       });
     }
 
-    assertRazorpayBillingWritesEnabled(change.organizationId);
+    assertRazorpayBillingWritesEnabled();
     const providerMode = resolveRazorpayMode();
     if (source.providerMode !== providerMode) {
       throw new Error(`Subscription provider mode ${source.providerMode} cannot be replaced in ${providerMode} mode`);
     }
     const intendedPlan = change.toPlan ?? source.plan;
     const intendedQuantity = change.toQuantity ?? source.quantity;
+    if (change.agreementBranchId && (intendedQuantity !== 1 || source.quantity !== 1)) {
+      throw new Error("A branch subscription must have quantity one");
+    }
     if (!Number.isInteger(intendedQuantity) || intendedQuantity < 1) {
       throw new Error("A replacement subscription must retain at least one billable branch");
     }
@@ -978,7 +986,7 @@ export class BillingReplacementService {
     // An uncharged mandate has no renewable paid cycle to advance. Its
     // replacement must share the first charge boundary so source retirement
     // can prove that two mandates will not charge at different future dates.
-    if (isPreStartSource && (futureStartBoundary.getTime() < now.getTime() + REPLACEMENT_SAFE_CYCLE_LEAD_MS
+    if (!change.agreementBranchId && isPreStartSource && (futureStartBoundary.getTime() < now.getTime() + REPLACEMENT_SAFE_CYCLE_LEAD_MS
       || (change.authorizedProviderStartAt != null
         && timestamp(change.authorizedProviderStartAt) !== timestamp(futureStartBoundary)))) {
       throw new Error("The first charge is too close or changed; this mandate cannot be safely replaced yet");
@@ -1004,12 +1012,17 @@ export class BillingReplacementService {
     if (isPreStartSource && discountSafeBoundary.getTime() !== currentBoundary.getTime()) {
       throw new Error("The original discounted authorization must complete before replacing this mandate");
     }
-    const effectiveAt = change.authorizedProviderStartAt ?? (isPreStartSource ? futureStartBoundary : getSafeReplacementCycleBoundary({
-      now,
-      currentCycleEnd: discountSafeBoundary,
-      intervalMonths: cadenceMonths,
-    }));
-    const undoCutoffAt = change.authorizedProviderExpireAt ?? getReplacementUndoCutoffAt(effectiveAt);
+    const cycle = { now, currentCycleEnd: discountSafeBoundary, intervalMonths: cadenceMonths };
+    const branchSchedule = change.agreementBranchId ? getBranchReplacementSchedule(cycle) : null;
+    // A request with a displayed quote freezes both dates at admission. Check
+    // the freshly fetched provider cycle before creating a collectible mandate.
+    if (branchSchedule && change.undoCutoffAt && !change.authorizedProviderStartAt
+      && change.effectiveAt?.getTime() !== branchSchedule.effectiveAt.getTime()) {
+      throw new Error("The provider charge date changed. Undo this request and review the new date in Billing");
+    }
+    const effectiveAt = change.authorizedProviderStartAt ?? branchSchedule?.effectiveAt
+      ?? (isPreStartSource ? futureStartBoundary : getSafeReplacementCycleBoundary(cycle));
+    const undoCutoffAt = change.authorizedProviderExpireAt ?? branchSchedule?.undoCutoffAt ?? getReplacementUndoCutoffAt(effectiveAt);
     const accessGraceEndsAt = getReplacementChargeGraceEndsAt(effectiveAt);
     const totalCount = change.authorizedTotalCount
       ?? Math.max(providerSource.remaining_count ?? getDefaultSubscriptionCycles(), 1);
@@ -1439,7 +1452,9 @@ export class BillingReplacementService {
       if (action === "NONE") return { action, change: decisionChange, subscription: candidate };
 
       if (action === "GRANT") {
-        if (["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"].includes(change.type)
+        // An independent plan update has an agreementBranchId and no operational
+        // branchId. It never activates, archives or changes the branch's trial.
+        if (!change.agreementBranchId && ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"].includes(change.type)
           && (!change.branch || change.branch.billingStatus !== "PENDING_ACTIVATION")) {
           return { action: "NONE" as const, change, subscription: candidate };
         }
@@ -1507,7 +1522,7 @@ export class BillingReplacementService {
       select: { organizationId: true },
     });
     if (!snapshot) throw new Error("Replacement billing change not found");
-    assertRazorpayBillingWritesEnabled(snapshot.organizationId);
+    assertRazorpayBillingWritesEnabled();
     const leaseToken = crypto.randomUUID();
     const claimed = await billingTransaction(async tx => {
       await lockBillingCoordinator(tx, snapshot.organizationId);
@@ -1716,7 +1731,7 @@ export class BillingReplacementService {
     if (!snapshot?.organizationSubscription) {
       throw new Error("Replacement source subscription not found");
     }
-    assertRazorpayBillingWritesEnabled(snapshot.organizationId);
+    assertRazorpayBillingWritesEnabled();
     // The source boundary may have advanced since the candidate was created.
     // Fetch provider truth immediately before the cancellation decision.
     await BillingReconciliationService.reconcileProviderSubscription(
@@ -2379,7 +2394,7 @@ export class BillingReplacementService {
       select: { organizationId: true },
     });
     if (!snapshot) throw new Error("Replacement billing change not found");
-    assertRazorpayBillingWritesEnabled(snapshot.organizationId);
+    assertRazorpayBillingWritesEnabled();
     const leaseToken = crypto.randomUUID();
     const intent: CandidateCancellationIntent = options.branchDisposition === "ARCHIVE"
       ? "UNDO_ARCHIVE"

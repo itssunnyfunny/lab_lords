@@ -225,8 +225,8 @@ legacy state, old Standard selection, preserved billing history, obsolete
 selection, unfinished migration, unexpected schema and v2 already present.
 It makes no provider call and does not rerun completed payment/migration checks.
 
-The [cutover handoff](../billing/three-plan-cutover.md#release-preparation-follow-up--2026-10-23)
-records all five incompatible cron frequencies, the same-project Pro
+The [cutover handoff](../billing/three-plan-cutover.md#hosting-and-schedule-registration)
+originally recorded all five incompatible cron frequencies, the same-project Pro
 path, alternative-scheduler requirements, operator inventory stop
 conditions and an evidence/responsibility matrix. The owner selected a Pro
 upgrade after approximately one week; the Hobby cron failure is an intentional

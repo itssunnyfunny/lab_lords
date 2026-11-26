@@ -1,3 +1,4 @@
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -47,6 +48,7 @@ describe("billing cancellation Undo ownership", () => {
   let admitBeforeTransaction: () => void;
 
   beforeEach(() => {
+    registerHistoricalBillingFixture("org");
     vi.resetAllMocks();
     changes = [{
       id: "cancel_old", organizationId: "org", type: "CANCELLATION",

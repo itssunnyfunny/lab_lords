@@ -16,12 +16,13 @@ function experience(overrides: Partial<BillingExperience> = {}): BillingExperien
     trialEndsAt: "2026-09-05T00:00:00.000Z",
     trialDaysRemaining: 30,
     paidThrough: null,
+    independentBilling: true,
     confirmedQuantity: 0,
-    projectedQuantity: 2,
+    projectedQuantity: 1,
     currentUnitAmount: 0,
     currentMonthlyTotal: 0,
     projectedUnitAmount: 99,
-    projectedMonthlyTotal: 598,
+    projectedMonthlyTotal: 99,
     authorizationStatus: "NOT_AUTHORIZED",
     planFeeDueToday: 0,
     nextChargeAt: null,
@@ -74,8 +75,8 @@ describe("BillingPriceSummary", () => {
     expect(html).toContain("After the trial");
     expect(html).toContain("Basic");
     expect(html).toContain("Not authorized");
-    expect(html).toContain("₹598/month");
-    expect(html).toContain("2 branches × ₹99");
+    expect(html).toContain("₹99/month");
+    expect(html).toContain("1 branch × ₹99");
     expect(html).toContain("Payment mandate");
     expect(html).toContain("Not scheduled — authorize a payment method first");
     expect(html).toContain("No plan fee is charged during your trial. Any payment authorization is a separate choice.");
@@ -87,7 +88,7 @@ describe("BillingPriceSummary", () => {
         experience={experience({
           selectedPostTrialPlan: "STANDARD",
           projectedUnitAmount: 299,
-          projectedMonthlyTotal: 998,
+          projectedMonthlyTotal: 299,
           authorizationStatus: "AUTHORIZED",
           nextChargeAt: "2026-09-05T00:00:00.000Z",
           providerStatus: "AUTHENTICATED",
@@ -99,7 +100,7 @@ describe("BillingPriceSummary", () => {
     expect(html).toContain("After the trial");
     expect(html).toContain("Standard");
     expect(html).toContain("Authorized");
-    expect(html).toContain("₹998/month");
+    expect(html).toContain("₹299/month");
     expect(html).toContain("5 September 2026");
     expect(html).not.toContain("Current subscription");
     expect(html).not.toContain("Current plan");
@@ -161,6 +162,7 @@ describe("BillingPriceSummary", () => {
           confirmedQuantity: 1,
           currentUnitAmount: 99,
           currentMonthlyTotal: 99,
+          monthlyCommitmentSubunits: 9900,
         })}
         current={{ providerPaymentMethod: "UPI" } as OrganizationSubscriptionDto}
       />
@@ -205,7 +207,8 @@ it("keeps Basic billing separate from complimentary Standard access until canoni
   const html = renderToStaticMarkup(<BillingPriceSummary experience={access} current={{ plan: "BASIC", providerPaymentMethod: "CARD" } as OrganizationSubscriptionDto} />);
   expect(html).toMatch(/Billed plan<\/dt><dd[^>]*>Basic<\/dd>/);
   expect(html).toMatch(/Current access<\/dt><dd[^>]*>Standard<\/dd>/);
-  expect(html).toContain("₹99/month");
+  expect(html).toContain("Plan rate · ₹99/month");
+  expect(html).toContain("Awaiting confirmation");
   expect(html).not.toContain("₹299/month");
   const promoted = renderToStaticMarkup(<BillingPriceSummary experience={{ ...access, currentUnitAmount: 299, currentMonthlyTotal: 299 }} current={{ plan: "STANDARD", providerPaymentMethod: "CARD" } as OrganizationSubscriptionDto} />);
   expect(promoted).toMatch(/Billed plan<\/dt><dd[^>]*>Standard<\/dd>/);

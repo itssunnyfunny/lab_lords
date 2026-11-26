@@ -13,7 +13,7 @@ function canSend(profile: OrganizationEntitlementProfile) {
  * Organization reports take every participating agreement lock in ID order. */
 export async function lockBranchBillingForSend(tx: Transaction, organizationId: string, branchId: string | null) {
   if (branchId === null) {
-    // Branch creation and conversion lock the tenant before changing the
+    // Branch creation and initialization lock the tenant before changing the
     // covered set. A row lock on existing agreements alone misses an insertion.
     await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Organization" WHERE "id" = ${organizationId} FOR SHARE`);
   }
@@ -68,6 +68,16 @@ export async function reconcileBranchPremiumWork(
   `);
 }
 
+/** Time alone can end a trial or paid period without a billing mutation.
+ * Recheck under the same lock used for final send admission. */
+export async function suppressExpiredBranchWork(tx: Transaction, organizationId: string, branchId: string) {
+  await lockBranchBillingForSend(tx, organizationId, branchId);
+  const profile = await EntitlementService.getBranchProfile(branchId, tx);
+  if (profile.organizationId !== organizationId) throw new Error("Branch agreement not found");
+  if (canSend(profile)) return 0;
+  return suppressUnsubmitted(tx, organizationId, Prisma.sql`"branchId" = ${branchId}`);
+}
+
 /** The prepared message's receiver scope is read from the persisted row.
  * A stale claim never gains authority by presenting another branch ID. */
 export async function checkFinalBranchSendScope(tx: Transaction, input: {
@@ -77,11 +87,10 @@ export async function checkFinalBranchSendScope(tx: Transaction, input: {
   const message = await tx.whatsAppMessage.findFirst({
     where: {id: input.messageId, organizationId: input.organizationId, branchId: input.branchId,
       status: "SUBMITTING", leaseToken: input.leaseToken, providerCallAdmittedAt: null, providerMessageId: null},
-    select: {createdAt: true, organization: {select: {billingModelVersion: true}},
+    select: {createdAt: true,
       dailyReportSnapshot: {select: {metrics: true, scheduledCutoffAt: true}}},
   });
   if (!message) return "STALE";
-  if (message.organization.billingModelVersion !== "BRANCH_V3") return "READY";
   const sourceTime = message.dailyReportSnapshot?.scheduledCutoffAt ?? message.createdAt;
   let eligible = locks.length > 0 && !locks.some(row =>
     row.whatsAppEligibleSince && row.whatsAppEligibleSince >= sourceTime);

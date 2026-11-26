@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import type { BillingRecoveryPayload } from "@/lib/api/billing";
 import {
   classifyRazorpayFailure,
   getRazorpayCheckoutPayload,
   isRazorpayCheckoutPayload,
   normalizeRazorpayFailure,
+  openHostedPaymentRecovery,
   openRazorpayCheckout,
   type RazorpayConstructor,
   type RazorpayHandlerResponse,
@@ -86,6 +88,20 @@ function openWithHarness(overrides: Partial<Parameters<typeof openRazorpayChecko
 }
 
 describe("RazorpayCheckoutLauncher", () => {
+  it("follows the hosted recovery response even when embedded Checkout is unavailable", () => {
+    const assign = vi.fn();
+    vi.stubGlobal("window", { location: { assign } });
+    try {
+      const hostedRecoveryUrl = "https://rzp.io/i/example";
+      const recovery = { purpose: "RECOVERY", hostedRecoveryUrl } as BillingRecoveryPayload;
+      expect(openHostedPaymentRecovery(recovery)).toBe(true);
+      expect(assign).toHaveBeenCalledExactlyOnceWith(hostedRecoveryUrl);
+      expect(openHostedPaymentRecovery({ ...recovery, hostedRecoveryUrl: undefined, subscription_card_change: true })).toBe(false);
+      expect(assign).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("uses the server display configuration while keeping prefilled contacts editable", () => {
     const { harness } = openWithHarness();
 

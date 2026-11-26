@@ -7,12 +7,13 @@ if(proof[0]?.name!=="lab_lords_dashboard_basic_integrated_browser_test"||await d
 const owner=await createUser({name:"Amit Kumar",email:"basic-owner@example.invalid",clerkId:subject(".clerk/dashboard-owner-auth.json")});
 const staff=await createUser({name:"Meera",email:"basic-staff@example.invalid"});
 const outsider=await createUser({name:"Other owner",email:"other-owner@example.invalid"});
-const org=await createOrg({ownerId:owner.id,name:"Shanti Learning Spaces",billingModelVersion:"WORKSPACE_V2"});
-const foreignOrg=await createOrg({ownerId:outsider.id,name:"Other organization",billingModelVersion:"WORKSPACE_V2"});
+const org=await createOrg({ownerId:owner.id,name:"Shanti Learning Spaces"});
+const foreignOrg=await createOrg({ownerId:outsider.id,name:"Other organization"});
 const branch=await createBranch({organizationId:org.id,name:"Saraswati Library",defaultFee:1000,defaultAdmissionFee:500});
 const other=await createBranch({organizationId:org.id,name:"Central Study Hall",defaultFee:900});
 const foreign=await createBranch({organizationId:foreignOrg.id});
-const subscription=await createSaasSubscription({organizationId:org.id,plan:"BASIC"});
+const subscription=await createSaasSubscription({organizationId:org.id,agreementBranchId:branch.id,plan:"BASIC"});
+await createSaasSubscription({organizationId:org.id,agreementBranchId:other.id,plan:"BASIC"});
 await createStaff({branchId:branch.id,userId:staff.id});
 const shifts=await Promise.all([["Morning","06:00","12:00"],["Afternoon","12:00","18:00"],["Evening","18:00","23:59"]].map(([name,startTime,endTime])=>createShift({branchId:branch.id,name,startTime,endTime})));
 const seats=[];for(let i=1;i<=30;i++)seats.push(await createSeat({branchId:branch.id,label:String(i).padStart(2,"0")}));

@@ -33,7 +33,7 @@ export const BILLING_CAPABILITIES = [
   { id: "RENEWALS_FOLLOW_UPS", label: "Upcoming fees and follow-up notes", standardOnly: true },
   { id: "ATTENDANCE", label: "Attendance and staff-assisted QR", standardOnly: true },
   { id: "DISPLAY_LANGUAGES", label: "English, Hindi and Hinglish preferences", standardOnly: false },
-  { id: "MULTIPLE_BRANCHES", label: "Organization-wide plan, priced per active branch", standardOnly: false },
+  { id: "MULTIPLE_BRANCHES", label: "Manage this branch plan in Account Billing", standardOnly: false },
   { id: "STAFF_CONTROLS", label: "Staff invitations, roles and permission controls", standardOnly: true },
   { id: "ADVANCED_ANALYTICS", label: "Branch and cross-branch advanced analytics", standardOnly: true },
   { id: "AI_ASSISTANCE", label: "AI reports", standardOnly: true },
@@ -82,12 +82,12 @@ export const BILLING_PLANS: BillingPlan[] = [
     interval: 1,
     active: true,
     visible: true,
-    description: "Simple student, seat and fee management. One plan for your organization, billed per active branch.",
+    description: "Simple student, seat and fee management.",
     features: [
       "Student records and spreadsheet import",
       "Seats, shifts and allocations",
       "Payments, dues and audit history",
-      "Organization-wide plan, priced per active branch",
+      "Manage this branch plan in Account Billing",
     ],
     entitlements: [],
     limits: { maxBranches: null },
@@ -108,7 +108,7 @@ export const BILLING_PLANS: BillingPlan[] = [
       "Student records and spreadsheet import",
       "Seats, shifts and allocations",
       "Payments, dues and audit history",
-      "Organization-wide plan, priced per active branch",
+      "Manage this branch plan in Account Billing",
       "Staff invitations, roles and permission controls",
       "Branch and cross-branch advanced analytics",
       "AI reports",
@@ -160,7 +160,7 @@ export function getActiveBillingPlan(planId: string): BillingPlan {
   return plan;
 }
 
-export function publicBillingPlans(independent = false) {
+export function publicBillingPlans() {
   return BILLING_PLANS.filter(
     (plan): plan is BillingPlan & { id: CheckoutBillingPlanId } => plan.visible
   ).map(plan => ({
@@ -175,10 +175,10 @@ export function publicBillingPlans(independent = false) {
     featured: Boolean(plan.featured),
     comingSoon: Boolean(plan.comingSoon),
     custom: Boolean(plan.custom),
-    description: independent && plan.id === "BASIC" ? "Simple student, seat and fee management." : plan.description,
+    description: plan.description,
     capabilities: BILLING_CAPABILITIES.map(capability => ({
       id: capability.id,
-      label: independent && capability.id === "MULTIPLE_BRANCHES" ? "Manage this branch plan in Account Billing" : capability.label,
+      label: capability.label,
       included: "proOnly" in capability ? plan.id === "PRO"
         : !capability.standardOnly || billingPlanRank(plan.id) >= billingPlanRank("STANDARD"),
     } satisfies PublicBillingCapability)),

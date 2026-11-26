@@ -25,11 +25,9 @@ import {
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
-import { FeatureUpgradeGate } from "@/components/billing/FeatureUpgradeGate";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
-import { hasFeatureEntitlement } from "@/lib/billingPolicy";
 import type { ResourceState } from "@/types";
-import { failResourceRefresh, resourceData, resourceUpdatedAt, startResourceRefresh } from "@/lib/resourceState";
+import { failResourceRefresh, resourceData, resourceUpdatedAt } from "@/lib/resourceState";
 
 type BranchAnalyticsRow = {
     id: string;
@@ -71,19 +69,18 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     const { orgId } = use(params);
     const { formatDateTime, formatNumber } = useUserPreferences();
     const billingExperience = useBillingExperience();
-    const independent = billingExperience?.organization?.independentBilling;
-    const eligible = independent ? billingExperience.organization?.branches.filter(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")).map(branch => branch.id).sort().join(",") : undefined;
-    const analyticsAvailable = independent ? Boolean(eligible) : hasFeatureEntitlement(billingExperience?.experience?.entitlements ?? [], "ORG_ANALYTICS");
+    const eligible = billingExperience?.organization?.branches.filter(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")).map(branch => branch.id).sort().join(",");
+    const analyticsAvailable = Boolean(eligible);
     const [snapshotState, setSnapshotState] = useState<ResourceState<OrganizationAnalyticsSnapshot>>({ status: "loading" });
     const [snapshotScope, setSnapshotScope] = useState<string>();
     const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
-        if (billingExperience?.loading || (!independent && !billingExperience?.experience) || !analyticsAvailable) return;
+        if (billingExperience?.loading || !analyticsAvailable) return;
         let active = true;
 
         async function loadAnalytics() {
-            setSnapshotState(current => independent ? { status: "loading" } : startResourceRefresh(current));
+            setSnapshotState({ status: "loading" });
 
             try {
                 const data = await analytics.getOrganizationSnapshot(orgId);
@@ -107,9 +104,9 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
         return () => {
             active = false;
         };
-    }, [analyticsAvailable, billingExperience?.experience, billingExperience?.loading, independent, eligible, orgId, refreshKey]);
+    }, [analyticsAvailable, billingExperience?.loading, eligible, orgId, refreshKey]);
 
-    const scopeChanged = independent && eligible !== snapshotScope;
+    const scopeChanged = eligible !== snapshotScope;
     const snapshot = scopeChanged ? null : resourceData(snapshotState);
     const updatedAt = resourceUpdatedAt(snapshotState);
 
@@ -128,13 +125,12 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     }, [formatNumber, snapshot]);
 
     if (billingExperience?.error) return <ErrorState title={t("Organization analytics unavailable")} description={billingExperience.error} onRetry={() => void billingExperience.refresh()} />;
-    if (billingExperience?.loading || (!independent && !billingExperience?.experience)) {
+    if (billingExperience?.loading) {
         return <PageLoadingSkeleton label={t("Checking analytics access")} variant="analytics" />;
     }
 
     if (!analyticsAvailable) {
-        if (independent) return <AppPanel title={t("Organization analytics")} description={t.owned("Advanced analytics requires a branch on Standard or Pro.")}><Link href={accountBillingHref(orgId)}>{t.owned("Manage branch plan")}</Link></AppPanel>;
-        return <FeatureUpgradeGate feature="ORG_ANALYTICS" experience={billingExperience?.experience}><span /></FeatureUpgradeGate>;
+        return <AppPanel title={t("Organization analytics")} description={t.owned("Advanced analytics requires a branch on Standard or Pro.")}><Link href={accountBillingHref(orgId)}>{t.owned("Manage branch plan")}</Link></AppPanel>;
     }
 
     if (snapshotState.status !== "error" && (scopeChanged || (snapshotState.status === "loading" && !snapshot))) {

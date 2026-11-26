@@ -33,7 +33,7 @@ describe("GET /api/cron/billing/hourly", () => {
       headers: { authorization: "Bearer billing-secret" },
     }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, expiredTrials: 1, errors: [] });
+    expect(await response.json()).toEqual({ ok: true, expiredTrials: 1, failed: 0 });
     expect(mocks.run).toHaveBeenCalledTimes(1);
   });
 });

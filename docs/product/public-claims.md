@@ -1,5 +1,7 @@
 # Public wording and feature claims
 
+The [25 November branch plan wording](#independent-branch-plans--local-review-25-november-2026) records the current catalogue and independent billing model. Earlier dated entries describe their original release candidates.
+
 ## Student enrollment and fee policy update
 
 Home, Features, Pricing and FAQ were checked against the change. The existing
@@ -375,6 +377,8 @@ and student billing flows without a public copy change.
 
 Home and FAQ explain in English, Hindi and Hinglish that Standard and Pro include invitations and permission administration. Existing staff keep their permitted core student, seat and fee workflows on Basic. Features reuses that FAQ.
 
-Home, Features, Pricing and FAQ follow the same server-side enrollment controls as new workspace creation. When either control is off they present the shared organization plan. When both are enabled they explain that new workspaces can choose Basic, Standard or Pro for each branch. Existing organizations can check their current billing arrangement in Account Billing. The shared FAQ covers the owner trial, branch renewal and invoices. Features describes cross-branch reporting for eligible active Standard and Pro branches.
+Home, Features, Pricing and FAQ describe Basic, Standard and Pro as plans chosen independently for each branch. Owners choose each branch’s plan in Account Billing. The shared FAQ covers the one-time owner trial, separate branch renewals and invoices. Features describes cross-branch reporting for eligible Standard and Pro branches. These public facts are available in English, Hindi and Hinglish.
 
-The Pricing example uses one branch on each catalogue plan. ₹99, ₹299 and ₹499 add up to ₹897 per month before tax. Branches receive separate charges and invoices and may renew on different dates. Public rendering tests exercise both enrollment controls and all three languages. Production enrollment remains subject to the [rollout evidence](../billing/independent-branch-rollout.md).
+Pricing shows one branch on each catalogue plan. ₹99, ₹299 and ₹499 add up to ₹897 per month before tax. Each branch has its own debit date and invoice. The public rendering tests check the mixed example and the three languages. See the [operating guide](../billing/independent-branch-rollout.md) for the deployment prerequisites and provider verification.
+
+The 26 November payment recovery corrections cover resuming checkout and checking an unresolved receipt in the signed-in owner’s billing screens. Home, Features, Pricing and FAQ already describe the same branch plans and payment terms.

@@ -158,6 +158,8 @@ export type BillingInvoicePage = { items: BillingInvoiceDto[]; nextCursor: strin
 
 export type BillingOperationDto = {
   clientIntent?: BranchBillingIntentReceipt;
+  canResumePaymentRecovery?: boolean;
+  requiresPaymentRecoveryReview?: true;
   id: string;
   organizationId: string;
   type: string;
@@ -273,6 +275,7 @@ export type BillingOperationResponse = {
   operation: BillingOperationDto;
   processingUrl?: string;
   checkout?: BillingCheckoutPayload;
+  recoveryUnavailable?: boolean;
 };
 
 export type BillingRetryResult = BillingCheckoutPayload | BillingRecoveryPayload | BillingOperationResponse;
@@ -284,18 +287,18 @@ type BillingIntentResult = {
 
 type BillingUndoResult = { undone: true; clientIntent?: BranchBillingIntentReceipt };
 
-export function billingRequestPath(path: string, branchId?: string) {
-  if (!branchId) return path;
+export function billingRequestPath(path: string, branchId: string) {
+  if (!branchId) throw new Error("Select a branch to manage its subscription");
   const separator = path.includes("?") ? "&" : "?";
   return path + separator + new URLSearchParams({ branchId }).toString();
 }
 
-export function billingForBranch(branchId?: string) {
+export function billingForBranch(branchId: string) {
   const scope = (path: string) => billingRequestPath(path, branchId);
   const storageKey = (orgId: string, action: string) => `branch-billing-intent:${orgId}:${branchId}:${action}`;
 
   function retireIntents(orgId: string, keys: string[]) {
-    if (!branchId || !keys.length) return;
+    if (!keys.length) return;
     for (const action of branchBillingIntentActions) {
       const slot = storageKey(orgId, action);
       const current = sessionStorage.getItem(slot);
@@ -311,7 +314,6 @@ export function billingForBranch(branchId?: string) {
   }
 
   async function submitIntent<T extends BillingIntentResult>(orgId: string, intent: string, submit: (key: string) => Promise<T>) {
-    if (!branchId) return submit(crypto.randomUUID());
     const slot = storageKey(orgId, intent);
     const key = sessionStorage.getItem(slot) ?? crypto.randomUUID();
     sessionStorage.setItem(slot, key);
@@ -323,7 +325,6 @@ export function billingForBranch(branchId?: string) {
   return {
     async getOverview(orgId: string): Promise<BillingOverview> {
       const url = scope(`/organizations/${orgId}/billing`);
-      if (!branchId) return apiClient.get(url);
       const pending = branchBillingIntentActions.map(action => sessionStorage.getItem(storageKey(orgId, action))).filter((key): key is string => key !== null);
       if (!pending.length) return apiClient.get(url);
       const result = await apiClient.get<unknown, BillingOverview>(url, { headers: { [billingIntentHeader]: pending.join(",") } });
@@ -369,15 +370,16 @@ export function billingForBranch(branchId?: string) {
     changePlan(
       orgId: string,
       plan: CheckoutBillingPlanId,
-      returnPath?: string
+      returnPath?: string,
+      expectedEffectiveAt?: string | null
     ): Promise<BillingPlanChangeResult> {
-      return submitIntent(orgId, "plan-" + plan, key => apiClient.patch(scope(`/organizations/${orgId}/billing/subscription`), { plan, returnPath }, {
+      return submitIntent(orgId, "plan-" + plan, key => apiClient.patch(scope(`/organizations/${orgId}/billing/subscription`), { plan, returnPath, expectedEffectiveAt: expectedEffectiveAt ?? undefined }, {
         headers: { "Idempotency-Key": key },
       }));
     },
 
-    changePaymentMethod(orgId: string, returnPath?: string): Promise<BillingPlanChangeResult> {
-      return submitIntent(orgId, "payment-method", key => apiClient.post(scope(`/organizations/${orgId}/billing/subscription/payment-method`), { returnPath }, {
+    changePaymentMethod(orgId: string, returnPath?: string, expectedEffectiveAt?: string | null): Promise<BillingPlanChangeResult> {
+      return submitIntent(orgId, "payment-method", key => apiClient.post(scope(`/organizations/${orgId}/billing/subscription/payment-method`), { returnPath, expectedEffectiveAt: expectedEffectiveAt ?? undefined }, {
         headers: { "Idempotency-Key": key },
       }));
     },
@@ -418,9 +420,9 @@ export function billingForBranch(branchId?: string) {
       orgId: string,
       returnPath?: string
     ): Promise<BillingRecoveryPayload | BillingCheckoutPayload> {
-      return apiClient.post(scope(`/organizations/${orgId}/billing/subscription/recovery`), { returnPath });
+      return submitIntent(orgId, "payment-method", key => apiClient.post(scope(`/organizations/${orgId}/billing/subscription/recovery`), { returnPath }, {
+        headers: { "Idempotency-Key": key },
+      }));
     },
   };
 }
-
-export const billing = billingForBranch();

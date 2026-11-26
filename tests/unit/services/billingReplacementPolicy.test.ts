@@ -8,6 +8,7 @@ import {
   REPLACEMENT_UNDO_CUTOFF_HOURS,
   REPLACEMENT_UNDO_CUTOFF_MS,
   addCalendarMonthsUtc,
+  getBranchReplacementSchedule,
   getReplacementChargeGraceEndsAt,
   getReplacementUndoCutoffAt,
   getSafeReplacementCycleBoundary,
@@ -21,6 +22,18 @@ import {
 } from "@/services/billingReplacementPolicy";
 
 describe("billing replacement policy", () => {
+  it("uses the next independent branch debit that leaves time for authorization and source retirement", () => {
+    const currentCycleEnd = new Date("2026-01-31T12:00:00Z");
+    const schedule = (when: string) => getBranchReplacementSchedule({
+      now: new Date(when), currentCycleEnd, intervalMonths: 1,
+    });
+    expect(schedule("2026-01-29T11:00:00Z")).toEqual({
+      effectiveAt: currentCycleEnd, undoCutoffAt: new Date("2026-01-29T12:00:00Z"),
+    });
+    expect(schedule("2026-01-29T11:00:01Z")).toEqual({
+      effectiveAt: new Date("2026-02-28T12:00:00Z"), undoCutoffAt: new Date("2026-02-26T12:00:00Z"),
+    });
+  });
   it("publishes the agreed lead, cutoff, and charge-grace durations", () => {
     expect(REPLACEMENT_SAFE_CYCLE_LEAD_DAYS).toBe(7);
     expect(REPLACEMENT_SAFE_CYCLE_LEAD_MS).toBe(7 * 24 * 60 * 60 * 1000);

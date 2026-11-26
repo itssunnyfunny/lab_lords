@@ -10,10 +10,7 @@ import { dashboardDateOffset, dashboardToday } from "@/lib/dashboardMath";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 async function fixture() {
-    const world = await createTestWorld();
-    await db.organization.update({ where: { id: world.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
-    await db.ownerTrialGrant.create({ data: { ownerId: world.user.id, organizationId: world.org.id, source: "ONBOARDING", status: "ACTIVE",
-        trialStartedAt: new Date(), trialEndsAt: new Date(Date.now() + 7 * 86_400_000) } });
+    const world = await createTestWorld({ trialPlan: "STANDARD" });
     const student = await createStudent({ branchId: world.branch.id });
     const today = dashboardToday(new Date(), "Asia/Kolkata");
     return { ...world, student, today };

@@ -1,3 +1,4 @@
+import { BillingDeadlineService } from "@/services/billingDeadline.service";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createAllocation, createBranch, createOrg, createPayment, createSaasSubscription, createSeat, createShift, createStaff, createStudent, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma as db } from "@/tests/setup/db";
@@ -22,8 +23,7 @@ async function world() {
   const organization = await createOrg({ownerId: owner.id, billingModelVersion: "BRANCH_V3"});
   const organizationId = organization.id;
   async function branch(plan: "BASIC" | "STANDARD" | "PRO") {
-    const row = await createBranch({organizationId, name: plan});
-    await db.branchBillingAgreement.create({data: {organizationId, branchId: row.id, selectedPlan: plan}});
+    const row = await createBranch({organizationId, name: plan, selectedPlan: plan});
     const subscription = await createSaasSubscription({organizationId, agreementBranchId: row.id, plan});
     await createStudent({branchId: row.id});
     return {id: row.id, subscription};
@@ -100,6 +100,38 @@ describe("branch feature admission", () => {
     expect(await snapshot()).toEqual(records);
   });
 
+  it("sweeps unpaid branch work after time-based expiry while preserving admitted sends and the Pro sibling", async () => {
+    const { owner, organizationId, pro } = await world();
+    const expired = await createBranch({ organizationId, name: "Expired trial" });
+    const now = new Date();
+    await db.ownerTrialGrant.create({ data: {
+      organizationId, ownerId: owner.id,
+      source: "ONBOARDING", status: "ACTIVE", trialPlan: "PRO",
+      trialStartedAt: new Date(now.getTime() - 86400000), trialEndsAt: now, consumedAt: now,
+    } });
+    await db.organizationSubscription.updateMany({ where: { organizationId }, data: { lastReconciledAt: now } });
+    const sender = await db.whatsAppSender.create({data: {organizationId, provider: "META_CLOUD", providerMode: "TEST",
+      wabaId: "sweep", phoneNumberId: "sweep", displayPhoneNumber: "+919000000002", status: "ACTIVE"}});
+    async function queue(branchId: string, key: string, admitted = false) {
+      return db.whatsAppMessage.create({ data: {
+        organizationId, branchId, senderId: sender.id, recipientPhoneE164: "+919000000001",
+        purpose: "MANUAL_REMINDER", trigger: "MANUAL", templateVariables: {}, scheduledFor: now, availableAt: now,
+        dedupeKey: key, sourceFingerprint: key, status: admitted ? "SUBMITTING" : "SCHEDULED",
+        budgetState: "RESERVED", providerCallAdmittedAt: admitted ? now : null,
+      } });
+    }
+    const stale = await queue(expired.id, "expired");
+    const uncertain = await queue(expired.id, "admitted", true);
+    const sibling = await queue(pro.id, "sibling");
+    expect(await BillingDeadlineService.run(now)).toMatchObject({ expiredTrials: 1, errors: [] });
+    expect(await db.whatsAppMessage.findUniqueOrThrow({where: {id: stale.id}})).toMatchObject({
+      status: "SUPPRESSED", budgetState: "RELEASED", failureCode: "BRANCH_ELIGIBILITY_CHANGED",
+    });
+    expect(await db.whatsAppMessage.findUniqueOrThrow({where: {id: uncertain.id}})).toEqual(uncertain);
+    expect(await db.whatsAppMessage.findUniqueOrThrow({where: {id: sibling.id}})).toEqual(sibling);
+    expect(await BillingDeadlineService.run(now)).toMatchObject({ expiredTrials: 0, errors: [] });
+  });
+
   it.each(["admission", "downgrade"] as const)("preserves provider admission ordering when %s acquires the agreement lock first", async first => {
     const {organizationId, pro} = await world();
     const sender = await db.whatsAppSender.create({data: {organizationId, provider:"META_CLOUD", providerMode: "TEST", wabaId:"waba", phoneNumberId:"test", displayPhoneNumber:"+919000000002", status:"ACTIVE"}});
@@ -110,8 +142,7 @@ describe("branch feature admission", () => {
       dedupeKey:"test-message", sourceFingerprint:"test", status:"SUBMITTING", leaseToken:"test-lease",
       submissionStartedAt:new Date(), budgetState:"RESERVED",
     }});
-    const sibling = await createBranch({organizationId, name:"Pro sibling"});
-    await db.branchBillingAgreement.create({data:{branchId:sibling.id, organizationId, selectedPlan:"PRO"}});
+    const sibling = await createBranch({organizationId, name:"Pro sibling",selectedPlan:"PRO"});
     await createSaasSubscription({organizationId, agreementBranchId:sibling.id, plan:"PRO"});
     const queuedSibling = await db.whatsAppMessage.create({data:{
       organizationId, branchId:sibling.id, senderId:sender.id, recipientPhoneE164:"+919000000003",

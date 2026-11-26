@@ -14,7 +14,6 @@ import {
     includesDefaultPrimaryShiftNames,
 } from "@/services/defaultShifts";
 import { generateSeatLabelsForSeatCount, type SeatNumberingConfig } from "@/lib/seatNumbering";
-import { independentBillingForNewWorkspaces, isWorkspaceBillingEnabled } from "@/lib/billingFeature";
 import { OwnerTrialService } from "@/services/ownerTrial.service";
 import { isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
 import { hashOnboardingRequest, invalidOnboardingRequest, normalizeOnboardingKey, OnboardingRequestError } from "@/lib/onboardingRequest";
@@ -152,9 +151,6 @@ export class OnboardingService {
                 throw new OnboardingRequestError("ORGANIZATION_ALREADY_EXISTS",
                     "Your account already owns an organization. Open it to manage branches.", 409);
             }
-            if (!isWorkspaceBillingEnabled()) {
-                throw new OnboardingRequestError("ONBOARDING_UNAVAILABLE", "Workspace creation is temporarily unavailable.", 503);
-            }
             await tx.user.update({
                 where: { id: userId },
                 data: { phone: ownerPhoneResult.value },
@@ -167,12 +163,13 @@ export class OnboardingService {
                     businessType: businessTypeResult.value,
                     contactPhone: ownerPhoneResult.value,
                     ownerId: userId,
-                    selectedPostTrialPlan: params.selectedPostTrialPlan,
-                    billingModelVersion: independentBillingForNewWorkspaces() ? "BRANCH_V3" : "WORKSPACE_V2",
+                    billingModelVersion: "BRANCH_V3",
                 },
             });
 
-            // 2. Create First Branch linked to Org
+            const trial = await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date(), params.trialPlan ?? "STANDARD");
+
+            // The branch and its commercial agreement commit with the owner trial.
             const branch = await tx.branch.create({
                 data: {
                     name: branchNameResult.value,
@@ -180,6 +177,9 @@ export class OnboardingService {
                     contactPhone: ownerPhoneResult.value,
                     defaultFee: defaultFeeResult.value,
                     organizationId: org.id,
+                    billingStatus: trial ? "ACTIVE" : "PENDING_ACTIVATION",
+                    billingActivatedAt: trial ? trial.trialStartedAt : null,
+                    billingAgreement: { create: { selectedPlan: params.selectedPostTrialPlan } },
                 },
             });
 
@@ -266,19 +266,6 @@ export class OnboardingService {
                     role: "MANAGER",
                 },
             });
-
-            const trial = await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date(), params.trialPlan ?? "STANDARD");
-            if (org.billingModelVersion === "BRANCH_V3") {
-                await tx.branchBillingAgreement.create({
-                    data: { branchId: branch.id, organizationId: org.id, selectedPlan: params.selectedPostTrialPlan },
-                });
-                if (!trial) {
-                    await tx.branch.update({
-                        where: { id: branch.id },
-                        data: { billingStatus: "PENDING_ACTIVATION", billingActivatedAt: null },
-                    });
-                }
-            }
 
             await tx.onboardingRequest.create({
                 data: { ownerId: userId, idempotencyKey, requestHash, organizationId: org.id, branchId: branch.id },
