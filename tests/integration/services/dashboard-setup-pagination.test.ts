@@ -23,11 +23,7 @@ describe("Dashboard setup pagination — real disposable PostgreSQL", () => {
     afterAll(disconnectDatabase);
 
     it("reaches every record and active student past 500 with independent scoped pages and a saved distant selection", async () => {
-        const { user, org, branch } = await createTestWorld();
-        await db.organization.update({ where: { id: org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
-        await db.ownerTrialGrant.create({ data: { ownerId: user.id, organizationId: org.id,
-            source: "ONBOARDING", status: "ACTIVE", trialStartedAt: new Date(),
-            trialEndsAt: new Date(Date.now() + 7 * 86_400_000) } });
+        const { user, branch } = await createTestWorld({ trialPlan: "STANDARD" });
         const foreign = await createTestWorld();
         await db.student.createMany({ data: Array.from({ length: STUDENT_COUNT }, (_, index) => ({
             id: idAt(index), branchId: branch.id, name: `Synthetic ${index}`, monthlyFee: 0,

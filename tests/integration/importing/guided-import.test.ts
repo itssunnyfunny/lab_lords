@@ -52,9 +52,8 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
     afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); restoreTime(); });
     afterAll(disconnectDatabase);
     async function world(plan: "BASIC" | "STANDARD" | "PRO" = "BASIC") {
-        const f = await createTestWorld({ shiftName: "Full Day" });
-        await db.organization.update({ where: { id: f.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
-        await createSaasSubscription({ organizationId: f.org.id, plan, paidThrough: new Date(2027, 0, 1) }); return f;
+        const f = await createTestWorld({ trialPlan: null, shiftName: "Full Day" });
+        await createSaasSubscription({ organizationId: f.org.id, agreementBranchId: f.branch.id, plan, paidThrough: new Date(2027, 0, 1) }); return f;
     }
     async function chooseRowPaymentStatus(f: World, detail: Awaited<ReturnType<typeof draft>>, status: "DUE" | "PAID") {
         const row = detail.rows[0];
@@ -425,6 +424,7 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         vi.setSystemTime(new Date(2026, 10, 15, 12));
         await expect(ImportPlanService.getPlanForCommit(f.user.id, f.branch.id, detail.id, plan.id)).rejects.toMatchObject({ code: "IMPORT_BUSINESS_DATE_CHANGED" });
         const foreign = await createBranch({ organizationId: f.org.id });
+        await createSaasSubscription({organizationId: f.org.id, agreementBranchId: foreign.id, plan: "BASIC"});
         await expect(ImportSessionService.confirmShiftInterpretation(f.user.id, foreign.id, detail.id, { expectedRevision: detail.draftRevision, source: "FD", targetId: f.shift.id })).rejects.toThrow("not found");
         const user = await createUser(); const staff = await createStaff({ branchId: f.branch.id, userId: user.id });
         await db.staffPermissionOverride.create({ data: { staffId: staff.id, action: "STUDENTS", allowed: false } });
