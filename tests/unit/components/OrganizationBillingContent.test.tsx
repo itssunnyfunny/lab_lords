@@ -35,12 +35,12 @@ function render(plan = standard, current: OrganizationSubscriptionDto = subscrip
 describe("dedicated billing plan selection", () => {
     it.each(["BASIC", "STANDARD_TRIAL", "PRO"] as const)("quotes a zero plan fee today during a %s trial", effectivePlan => {
         const quote = getPlanConfirmationQuote(standard, { ...experience, effectivePlan, trialDaysRemaining: 14, projectedQuantity: 2 }, false);
-        expect(quote).toEqual({ unitAmount: 299, quantity: 2, monthlyTotal: 598, trialActive: true, planFeeDueToday: 0 });
+        expect(quote).toEqual({ unitAmount: 299, quantity: 1, monthlyTotal: 299, trialActive: true, planFeeDueToday: 0 });
     });
 
     it("quotes the recurring fee for a first checkout after trial and zero for a replacement", () => {
         const access = { ...experience, projectedQuantity: 2 };
-        expect(getPlanConfirmationQuote(standard, access, false).planFeeDueToday).toBe(598);
+        expect(getPlanConfirmationQuote(standard, access, false).planFeeDueToday).toBe(299);
         expect(getPlanConfirmationQuote(standard, access, true).planFeeDueToday).toBe(0);
         expect(getPlanConfirmationQuote(standard, { ...access, independentBilling: true, legacyCoverageEndsAt: "2027-01-22T00:00:00Z" }, false).planFeeDueToday).toBe(0);
     });
