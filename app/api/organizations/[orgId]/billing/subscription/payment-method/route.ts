@@ -22,7 +22,8 @@ export async function POST(
       user.id,
       orgId,
       idempotencyKey,
-      body.returnPath
+      body.returnPath,
+      body.expectedEffectiveAt
     )));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to change payment method";

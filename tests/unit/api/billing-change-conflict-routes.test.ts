@@ -17,6 +17,7 @@ import { POST as reactivateBranch } from "@/app/api/branches/[branchId]/billing/
 
 const mocks = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
+  findAgreement: vi.fn(),
   isOwner: vi.fn(),
   getOrganizationForOwnerAccess: vi.fn(),
   createBranchForOrg: vi.fn(),
@@ -28,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   getBillingOperation: vi.fn(),
   reconcileMutation: vi.fn(),
 }));
+
+vi.mock("@/lib/prisma", () => ({ prisma: { branchBillingAgreement: { findFirst: mocks.findAgreement } } }));
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: mocks.getSessionUser,
@@ -92,15 +95,29 @@ describe("billable-change route conflicts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getSessionUser.mockResolvedValue({ id: "owner_1", email: "owner@test.com" });
+    mocks.findAgreement.mockResolvedValue({ organizationId: "org_1", branchId: "branch_1" });
     mocks.isOwner.mockResolvedValue(true);
     mocks.getOrganizationForOwnerAccess.mockResolvedValue({ id: "org_1" });
+  });
+
+  it("requires an owner's branch agreement before dispatching a purchase", async () => {
+    const response = await createSubscription(request("/api/organizations/org_1/billing/subscription", { plan: "PRO" }),
+      { params: Promise.resolve({ orgId: "org_1" }) });
+    expect(response.status).toBe(400);
+    expect(mocks.findAgreement).not.toHaveBeenCalled();
+    expect(mocks.createSubscriptionCheckout).not.toHaveBeenCalled();
+    mocks.findAgreement.mockResolvedValueOnce(null);
+    const foreign = await createSubscription(request("/api/organizations/org_1/billing/subscription?branchId=foreign", { plan: "PRO" }),
+      { params: Promise.resolve({ orgId: "org_1" }) });
+    expect(foreign.status).toBe(404);
+    expect(mocks.createSubscriptionCheckout).not.toHaveBeenCalled();
   });
 
   it("returns a structured 409 for an initial subscription conflict", async () => {
     mocks.createSubscriptionCheckout.mockRejectedValueOnce(conflict());
 
     await expectConflict(await createSubscription(
-      request("/api/organizations/org_1/billing/subscription", { plan: "PRO" }),
+      request("/api/organizations/org_1/billing/subscription?branchId=branch_1", { plan: "PRO" }),
       { params: Promise.resolve({ orgId: "org_1" }) }
     ));
   });
@@ -111,7 +128,7 @@ describe("billable-change route conflicts", () => {
     );
 
     const response = await createSubscription(
-      request("/api/organizations/org_1/billing/subscription", { plan: "PRO" }),
+      request("/api/organizations/org_1/billing/subscription?branchId=branch_1", { plan: "PRO" }),
       { params: Promise.resolve({ orgId: "org_1" }) }
     );
 
@@ -130,7 +147,7 @@ describe("billable-change route conflicts", () => {
     );
 
     const response = await reconcileMutation(
-      request("/api/organizations/org_1/billing/mutations/change_provisioning", {}),
+      request("/api/organizations/org_1/billing/mutations/change_provisioning?branchId=branch_1", {}),
       { params: Promise.resolve({ orgId: "org_1", changeId: "change_provisioning" }) }
     );
 
@@ -147,7 +164,7 @@ describe("billable-change route conflicts", () => {
     mocks.changeWorkspacePlan.mockRejectedValueOnce(conflict());
 
     await expectConflict(await changePlan(
-      request("/api/organizations/org_1/billing/subscription", { plan: "PRO" }, "PATCH"),
+      request("/api/organizations/org_1/billing/subscription?branchId=branch_1", { plan: "PRO" }, "PATCH"),
       { params: Promise.resolve({ orgId: "org_1" }) }
     ));
   });
@@ -156,7 +173,7 @@ describe("billable-change route conflicts", () => {
     mocks.createPaymentMethodReplacement.mockRejectedValueOnce(conflict());
 
     await expectConflict(await changePaymentMethod(
-      request("/api/organizations/org_1/billing/subscription/payment-method", {}),
+      request("/api/organizations/org_1/billing/subscription/payment-method?branchId=branch_1", {}),
       { params: Promise.resolve({ orgId: "org_1" }) }
     ));
   });
@@ -166,6 +183,7 @@ describe("billable-change route conflicts", () => {
 
     await expectConflict(await createBranch(request("/api/branches", {
       organizationId: "org_1",
+      futurePlan: "BASIC",
       name: "Second Branch",
       contactPhone: "9876543210",
       seatCount: 10,
@@ -177,6 +195,7 @@ describe("billable-change route conflicts", () => {
 
     await expectConflict(await createOrganizationBranch(
       request("/api/organizations/org_1/branches", {
+        futurePlan: "BASIC",
         name: "Second Branch",
         contactPhone: "9876543210",
       }),
