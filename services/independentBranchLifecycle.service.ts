@@ -88,7 +88,7 @@ export class IndependentBranchLifecycle {
             const undoCutoffAt = needsCancellation && cancellationBoundary
                 ? new Date(cancellationBoundary.getTime() - 86400000) : effectiveAt;
             if (needsCancellation) {
-                assertRazorpayBillingWritesEnabled(scope.organizationId);
+                assertRazorpayBillingWritesEnabled();
                 if (!cancellationBoundary) throw new BillingValidationError("Reconcile this mandate before scheduling removal.");
                 await tx.organizationBillingChange.create({ data: {
                     ...base, organizationSubscriptionId: source.id,
