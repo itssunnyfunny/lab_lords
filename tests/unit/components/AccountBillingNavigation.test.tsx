@@ -36,7 +36,8 @@ vi.mock("@/components/settings/LocalizedText", () => ({ useTranslation: () => Ob
 vi.mock("@/components/billing/BillingExperienceProvider", () => ({ BillingExperienceProvider: "billing-provider", useBillingExperience: () => null }));
 vi.mock("@/components/settings/UserPreferencesApplier", () => ({ useUserPreferences: () => ({ ownerKey: "fixture-owner" }) }));
 vi.mock("@/lib/api/workspaces", () => ({ workspaces: { getDirectory: mocks.directory } }));
-vi.mock("@/components/billing/RazorpayCheckoutLauncher", () => ({
+vi.mock("@/components/billing/RazorpayCheckoutLauncher", async original => ({
+  ...await original<typeof import("@/components/billing/RazorpayCheckoutLauncher")>(),
   RazorpayCheckoutScript: "checkout-script", isRazorpayCheckoutReady: () => mocks.ready,
   isRazorpayCheckoutPayload: () => false, getRazorpayCheckoutPayload: () => null, openRazorpayCheckout: mocks.checkout,
 }));
@@ -126,6 +127,7 @@ describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", c
     const timing = action === "payment method" || action === "plan change" ? ["2027-02-01T00:00:00.000Z"] : [];
     expect(api).toHaveBeenCalledWith(selected.id, ...(action.includes("plan") ? ["PRO", returnPath] : [returnPath]), ...timing);
     if (action === "initial plan") mocks.checkout.mock.calls[0][0].navigate(processingUrl);
+    expect(mocks.push).toHaveBeenCalled();
     const navigated = new URL(mocks.push.mock.calls.at(-1)![0], "https://test.invalid");
     expect(navigated.pathname).toBe(`/account/billing/${selected.id}/processing/change`);
     expect(navigated.searchParams.get("branchId")).toBe(`${selected.id}-branch`);
