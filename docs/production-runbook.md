@@ -2,7 +2,7 @@
 
 ## Independent branch agreements — 25 November 2026
 
-Use the [independent branch rollout guide](billing/independent-branch-rollout.md) for the pre-migration inventory, exact cohort selection, digest-bound dry run, transaction boundaries, hourly reconciliation and recovery of external provider obligations. New V3 enrollment is opt-in. Preserve the original aggregate agreement for any cohort with a recurring or uncertain mandate.
+Follow [branch billing operations](billing/independent-branch-rollout.md) for the forward migration, repeatable tenant-scoped initialization, eight authenticated jobs, provider setup and recovery.
 
 ## Account navigation compatibility - local, 6 November 2026
 
@@ -71,13 +71,10 @@ original reviewed outcomes; today's balances remain owned by Fees. See the
 
 ## Explicit onboarding trial plan — 2 November 2026
 
-Hosted preview observation on 2 November: Vercel rejected this change's automatic
-preview before compilation because the project's Hobby account permits only
-daily crons, while the existing billing job runs hourly and WhatsApp jobs run
-more frequently. `vercel.json` is unchanged. Local build verification does not
-resolve this hosting capability mismatch. An owner must separately align hosting
-capability with the required existing schedules; changing billing or WhatsApp
-cadence is not an onboarding deployment workaround.
+On 2 November the legacy Cron Jobs configuration exceeded the Hobby plan's
+daily limit. The deployment was rejected before compilation. The branch billing
+release configures named Vercel Schedules. See the [current scheduling
+procedure](#vercel-schedules) for the five-minute sender and account requirements.
 
 `20261102120000_explicit_owner_trial_plan` adds non-null
 `OwnerTrialGrant.trialPlan` using the existing SaasPlan enum, default STANDARD.
@@ -325,7 +322,7 @@ items that are not encoded in this repository:
   data-residency review, benchmark evidence, analysis/completion SLOs,
   mutation-cap owner, Workflow/ledger monitoring, and active-run rollback or
   cancellation authority;
-- the authority and dashboard procedure for disabling Vercel Cron Jobs or
+- the authority and dashboard procedure for disabling named Vercel Schedules or
   stopping Production traffic;
 - the allowed overlap period for old and new Razorpay webhook secrets;
 - the stable Preview and Production webhook hostnames and any Deployment
@@ -385,7 +382,7 @@ documentation.
 | --- | --- | --- | --- | --- | --- |
 | Local Development | Dedicated local/development database and Clerk development instance | Test Mode only when billing is exercised | `TEST` only; synthetic/injected fake provider unless an explicitly approved isolated Test-app exercise is being performed | No automatic Vercel schedule; invoke protected routes manually | Synthetic or approved development data only |
 | Automated Test | Dedicated disposable PostgreSQL test database; Clerk is mocked where needed | Test/fake configuration supplied by the test harness | Injected fake client and mocked Facebook SDK only; never contact Meta | None | Disposable fixtures only |
-| Preview | Database and Clerk development instance isolated from Production | Test Mode with a Preview-only webhook secret | `TEST` only, dedicated Test app/config/WABA/phone and Preview-only secret/callback if separately configured | Vercel does not schedule Preview cron jobs; invoke the protected Preview route manually | Demo or approved sanitized data only |
+| Preview | Database and Clerk development instance isolated from Production | Test Mode with a Preview-only webhook secret | `TEST` only, dedicated Test app/config/WABA/phone and Preview-only secret/callback if separately configured | Static schedules start inactive per Preview branch. Check the branch's stored enablement before a manual invocation. | Demo or approved sanitized data only |
 | Production | Production database and Clerk production instance | Live Mode with Production-only credentials and webhook secret | `LIVE` only, Production-only configuration, and all WhatsApp flags held until the separately approved rollout | `vercel.json` declares schedules for the active Production deployment; verify that they are deployed and enabled | Customer data under the approved access and retention policy |
 
 Preview and Production must have different database fingerprints, Clerk
@@ -393,7 +390,7 @@ instances, Razorpay modes and credentials, webhook secrets, and cron secrets.
 They must also use isolated Meta Test/Live assets, credentials, system users,
 Embedded Signup configurations, verification tokens, and callback hosts.
 The detailed proof and release gates are in the
-[Workspace billing V2 rollout](./workspace-billing-rollout.md).
+[Branch billing provider setup](./workspace-billing-rollout.md).
 
 ### Configuration inventory
 
@@ -408,7 +405,7 @@ capabilities held and contains no usable credential or approved rate.
 | Direct migration connection | `DIRECT_URL`; GitHub Environment secret `PRODUCTION_DIRECT_DATABASE_URL` is mapped to it by the migration workflow |
 | Clerk | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`; sign-in, sign-up, and fallback paths are code-defined rather than environment-defined |
 | Razorpay credentials and mode | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_MODE`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_OLD_SECRETS`, `RAZORPAY_DEFAULT_SUBSCRIPTION_CYCLES` |
-| Billing release controls | `RAZORPAY_BILLING_WRITES_ENABLED`, `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED`, `RAZORPAY_LIVE_CANARY_ORG_IDS`, `WORKSPACE_BRANCH_BILLING_V2_ENABLED` |
+| Billing release controls | `RAZORPAY_BILLING_WRITES_ENABLED`, `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED` |
 | Meta WhatsApp credentials and mode | `META_WHATSAPP_MODE`, `META_APP_ID`, `META_APP_SECRET`, `META_EMBEDDED_SIGNUP_CONFIG_ID`, `META_BUSINESS_ID`, `META_SYSTEM_USER_ID`, `META_SYSTEM_USER_ACCESS_TOKEN`, `META_GRAPH_API_VERSION` (exactly `v25.0`), `META_WHATSAPP_WEBHOOK_VERIFY_TOKEN` |
 | WhatsApp release controls | `WHATSAPP_INTEGRATION_ENABLED`, `WHATSAPP_META_ONBOARDING_WRITES_ENABLED`, `WHATSAPP_META_TEMPLATE_WRITES_ENABLED`, `WHATSAPP_META_MESSAGE_WRITES_ENABLED`, `WHATSAPP_AUTOMATION_PLANNER_ENABLED`, `WHATSAPP_REPORTS_ENABLED`, `WHATSAPP_REPORT_PLANNER_ENABLED`, `WHATSAPP_SERVICE_NOTICES_ENABLED`, `WHATSAPP_HEALTH_RECONCILIATION_ENABLED`, `WHATSAPP_OPERATIONS_UI_ENABLED`, `WHATSAPP_WEBHOOK_INGEST_ENABLED`, `WHATSAPP_LIVE_CANARY_ORG_IDS`, `WHATSAPP_LIVE_DELIVERY_CANARY_ORG_IDS`, `WHATSAPP_LIVE_AUTOMATION_CANARY_ORG_IDS`, `WHATSAPP_HEALTH_CANARY_ORG_IDS` |
 | WhatsApp estimated rate card | `WHATSAPP_UTILITY_RATE_MICROS_INR`, `WHATSAPP_RATE_CARD_VERSION`, `WHATSAPP_RATE_CARD_EFFECTIVE_AT`, `WHATSAPP_RATE_CARD_EXPIRES_AT`; this is an operator-approved estimate, not a Meta invoice |
@@ -449,12 +446,12 @@ Run more targeted tests while developing, then the broader affected suite. CI
 also runs coverage. Browser tests are available through `pnpm test:browser` when
 the change affects an end-to-end flow.
 
-> **Destructive database warning:** Vitest loads `.env.test`, checks only that
-> `DATABASE_URL` contains the text `test`, and integration-test setup can execute
-> `TRUNCATE ... CASCADE` across all application tables. That substring check does
-> not prove isolation. Before any integration test, independently verify the
-> database host, database name, account, and environment. Never point `.env.test`
-> at a shared Development, Preview, staging, or Production database.
+> **Integration tests can truncate all application tables.** Verify that the
+> database belongs to the disposable local test instance before running them.
+> The test guard requires a loopback PostgreSQL target with `test` in its name.
+> With `TEST_DATABASE_URL`, set `TEST_DATABASE_RESET_CONFIRM` to the exact database
+> name. Otherwise the runner loads `.env.test`. Keep both targets isolated from
+> shared Development, Preview, staging and Production.
 
 CI provisions its own PostgreSQL service, applies migrations with
 `pnpm prisma migrate deploy`, and then runs lint, tests, build, and coverage. A
@@ -477,16 +474,14 @@ present and otherwise falls back to `DATABASE_URL`.
    together.
 4. Apply from a clean checkout to a disposable Test database with
    `pnpm prisma migrate deploy`.
-5. Apply to the isolated Preview database and run the affected tests and smoke
-   checks.
+5. Run affected integration tests on the disposable database. Apply to the
+   isolated Preview database for operator-approved smoke checks.
 6. For destructive, long-running, or contract migrations, use an approved
    expand/backfill/compatible-code/contract sequence. Do not assume an
    application rollback will make an incompatible database schema safe.
 
-The workspace-billing migrations have a specific expansion, backfill, cutover,
-and release sequence. Follow the
-[Workspace billing V2 rollout](./workspace-billing-rollout.md) rather than
-reconstructing that order here.
+Use the tenant-scoped initialization procedure, compatibility drain and post-migration
+checks in [branch billing operations](billing/independent-branch-rollout.md).
 
 ### Student enrollment and fee policy rollout
 
@@ -592,8 +587,7 @@ This is a coordinated release, not compatible with rolling old/new writers:
 old inserts omit `branchId`, while new code requires the migrated schema. Under
 separate approval, take the verified backup, drain interactive/import allocation
 writers, apply the migration, deploy matching code, verify, then resume writers.
-No environment variable, provider mutation, or commercial-policy change is
-required. The onboarding flag requirement in Normal release also applies.
+The allocation migration uses the existing environment and commercial policy.
 
 After migration, rerun the preflight and require unchanged total/active/bundled
 counts and zero inconsistent rows. Additionally verify:
@@ -659,8 +653,8 @@ it does not stop signed reconciliation.
 Deploy database-first. The previous application is compatible with the added
 nullable columns, enum value, indexes, foreign keys, and permissive all-null
 branch of the checks. Apply and verify the migration before deploying code that
-writes or reads exact commercial evidence. Do not enable a billing flag or Live
-canary between those steps.
+writes or reads exact commercial evidence. Keep the billing write pause in
+effect until the compatible workers are ready.
 
 Immediately after migration and before the new application processes billing,
 repeat the three row counts and run:
@@ -711,7 +705,7 @@ to be zero and the table row counts must equal the recorded pre-migration
 counts. The constraint query must return four rows and the index query six.
 Then run `pnpm prisma migrate status`, Prisma validation/generation, the focused
 billing unit and integration suites, lint, and the Production build before
-resuming billing processing or enabling a canary.
+resuming billing processing.
 
 There is no automatic down migration. An application rollback may leave this
 additive schema in place; the previous application ignores it. Prefer a
@@ -1345,11 +1339,7 @@ Vercel Git or CLI path before release. See Vercel's official
 
 ### Normal release
 
-The 2026-09-05 onboarding hardening retires organization-only POST creation and
-requires `WORKSPACE_BRANCH_BILLING_V2_ENABLED` for new onboarding. With the flag
-held, new creation is unavailable; existing legacy access remains supported.
-Before releasing, verify the intended flag state through the approved operator
-process. No flag or deployment change was performed by the local sprint.
+Apply the default-branch-billing migration and deploy the matching application before reopening writes. Every new workspace has a first branch agreement.
 
 LEAD-01 onboarding replay requires a database-first additive
 `OnboardingRequest` migration before the receipt-aware handler and browser are
@@ -1364,7 +1354,7 @@ the receipt; restrictive keys block physical owner/organization/branch deletion
 while a receipt exists. Any future erasure workflow needs a separately reviewed
 consumed-key preservation scheme and must not silently free a key. Rollback
 must keep the receipt table and replay-aware handler, or hold onboarding
-creation with the existing release gate. Reverting to a keyless handler while
+creation at ingress while rolling forward. Reverting to a keyless handler while
 creation is open restores duplicate workspace risk. The migration in this
 remediation is generated but must not be applied outside an exactly verified
 disposable local test database without separate release authorization.
@@ -1999,15 +1989,15 @@ whole-file transaction, and cleanup is not rollback.
   Before repointing traffic to older code, prove it tolerates the current schema
   and nullable retained run references.
 - Disable the import-retention cron separately only when retention itself is
-  harmful, then verify the Cron dashboard and track the staging backlog. A
+  harmful, then verify the Schedules view and track the staging backlog. A
   disabled purge is not a substitute for stopping Workflow execution.
 - Recovery means reconciling plan/run/item counts and created entity IDs,
   repairing through a new revision/plan when appropriate, and preserving a
   truthful partial-result history. It does not mean file-wide rollback.
 
-## Vercel Cron Jobs
+## Vercel Schedules
 
-[`vercel.json`](../vercel.json) defines eight HTTP `GET` schedules:
+[`vercel.json`](../vercel.json) defines eight named HTTP path schedules using `GET` and UTC.
 
 | Path | Schedule | UTC interpretation | Repository behavior |
 | --- | --- | --- | --- |
@@ -2020,17 +2010,17 @@ whole-file transaction, and cleanup is not rollback.
 | `/api/cron/whatsapp/health` | `*/30 * * * *` | Every 30 minutes | When independently enabled/canaried, reconciles a bounded sender batch using provider reads only and records safety/incident/job evidence |
 | `/api/cron/whatsapp/maintenance` | `0 2 * * *` | Daily at 02:00 UTC | Performs bounded local challenge/subscription/lease/notice/stuck-work/job/snapshot maintenance; never calls Meta or deletes submitted/consent/audit history |
 
-Vercel cron expressions always use UTC and scheduled invocations run only for
-Production deployments. Vercel does not automatically retry a failed cron and
-may duplicate, miss, or overlap an invocation, so database idempotency/leases
-remain authoritative. Updating, deleting, or adding a schedule requires a
-redeployment. Confirm the selected plan supports the frequencies: current
-official limits allow only daily cron on Hobby and down to once per minute on
-Pro/Enterprise, with at most 100 jobs per project. See the official
-[Cron Jobs](https://vercel.com/docs/cron-jobs),
-[Cron quickstart](https://vercel.com/docs/cron-jobs/quickstart), and
-[Cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs)
-documentation.
+Production promotion registers these schedules. Confirm one enabled schedule
+per route in the project's Schedules view. The five-minute sender requires Pro
+or Enterprise. Hobby can run a schedule at most every 15 minutes.
+[Vercel migration guide](https://vercel.com/docs/schedules/migrate-from-cron-jobs),
+[frequency and jitter limits](https://vercel.com/docs/schedules/limits).
+
+On a failed path invocation, check execution history and durable worker state.
+The next scheduled pass can recover due work, or an operator can invoke the
+same schedule after checking its lease and outstanding actions. Vercel does
+not automatically retry HTTP path targets.
+[Schedule retry behavior](https://vercel.com/docs/schedules/concepts).
 
 All eight routes fail closed unless the request carries the exact `CRON_SECRET`
 as a Bearer authorization header. Never place the secret in a URL, screenshot,
@@ -2046,7 +2036,7 @@ Operational expectations:
   message dispatcher leases with stale-worker fencing. Operators must still
   inspect errors, runtimes, queue depth, overdue staging, rate limits, failed
   messages, incidents, safety state, webhook health, and every `UNKNOWN` outcome.
-- Preview schedules do not run automatically. First invoke each protected
+- For Preview tests, verify the branch and destination, then invoke each protected
   WhatsApp Preview endpoint manually with its controlling flag false and require
   an authenticated `2xx` held/zero result with no PR4 table/provider work. Later
   Test-only invocations follow the approved rollout: planner remains false for
@@ -2056,8 +2046,9 @@ Operational expectations:
 - The payment and import daily responses report processing counts. Import
   retention reports batches, selected sessions, scrubbed run items, purged
   sessions, the exact remaining backlog, and whether the 20-batch ceiling was
-  reached. The hourly response reports deadline, retry,
-  replacement, and reconciliation counts plus errors. WhatsApp planner reports
+  reached. The hourly response reports deadline, retry, replacement and
+  reconciliation counts, including a failure count. A partial failure returns
+  HTTP 503. WhatsApp planner reports
   held/claimed/completed/failed branches, planned/skipped/cancelled messages, and
   its limit; dispatcher reports held/claimed/accepted/retried/failed/unknown/
   suppressed messages and remaining backlog. Report/health/maintenance responses
@@ -2083,9 +2074,9 @@ Operational expectations:
   unadmitted `SUBMITTING` row. Only a stale row with durable
   `providerCallAdmittedAt` evidence becomes `UNKNOWN`; never force or reset an
   admitted row to retry.
-- To pause schedules, use the operator-approved Vercel Cron Jobs control and
-  verify the dashboard state. Changing `CRON_SECRET` alone is not a clean pause.
-- After an Instant Rollback, inspect the Cron Jobs dashboard explicitly. Do not
+- To pause one job, disable its named schedule in the Vercel Schedules view
+  and verify the environment and resulting state. Changing `CRON_SECRET` alone is not a clean pause.
+- After an Instant Rollback, inspect the Schedules view for the target environment. Do not
   assume application rollback, environment rollback, and active schedule state
   changed together.
 
@@ -2093,24 +2084,20 @@ Operational expectations:
 
 ### Billing recovery and gateway hardening — 2026-10-22
 
-The dedicated owner page is `/org/[orgId]/billing`. Recovery remains read-first:
+Owners open Account → Billing and select the affected branch. Saved organization billing
+URLs redirect to Account. For recovery,
 use the existing owner recovery/reconciliation action and inspect its typed
 outcome. Exact recovery closes its corresponding provider-action receipt in the
 same transaction. Reconcile previously adopted exact-settlement updates to repair
 stale matching receipts; do not delete receipts, clear unrelated holds or replay
 an uncertain provider write manually.
 
-Domestic-card mandates rejected plan/quantity updates in the observed Test
-account. The application does not persist provider-verified international-card
-eligibility, so all new Workspace Billing V2 CARD plan, trial-plan and branch-quantity changes use
-replacement authorization. Do not infer native update support from `CARD`, or
-relabel a card as another method to obtain different routing. Card-only Checkout
-can authorize the replacement with `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED`
-off; that flag still gates UPI/eMandate replacement and proactive method switching.
-Existing native scheduled operations keep their recorded identity and their
-undo/reconciliation path; do not rewrite them as replacement operations.
+A branch with an existing card, UPI or eMandate uses explicit replacement
+authorization for a plan or payment-method change. Account capability settings
+choose the methods offered in Checkout. Reconcile an unknown source method and
+use the original operation when recovering historical native scheduled changes.
 
-For release evidence, test initial paid Basic and Standard access separately
+For release evidence, test initial paid Basic, Standard and Pro access separately
 from replacement authorization, source retirement and later cutover. Confirm a
 card plan change returns a replacement Checkout, creates one frozen candidate
 and sends no plan/quantity PATCH to the source. Check current paid access and
@@ -2121,7 +2108,7 @@ update/undo sandbox test cannot substitute for this replacement path. Keep lost
 response recovery and the next independently requested change as separate
 assertions, checking every provider-write category for a read-only recovery.
 Check that retry reopens the existing replacement Checkout returned by the owner
-operation endpoint without a new plan request. For pending trial branches, test
+operation endpoint without a new plan request. For branches awaiting activation, test
 both retry and discard: an absent candidate pointer must not permit local
 cleanup while provider creation is in flight or uncertain.
 
@@ -2138,9 +2125,9 @@ signature. A refunded invoice remains invalid paid-settlement evidence. In
 release checks, verify both delayed/refunded authorization recovery and rejection
 of proof reused for a different payment, and confirm paidThrough stays unchanged.
 
-Include a future-start case: the candidate preserves the source's original start
-and the owner trial end; insufficient safe lead time must hold the change rather
-than move those dates. After the undo cutoff, an authenticated source can be
+Include a future-start case. Check the original mandate start, owner trial end
+and quoted first debit for the replacement. A renewal inside the retirement
+window stays on the original mandate. After the undo cutoff, an authenticated source can be
 retired immediately only while its source/candidate/frozen start matches the
 still-future effective date. Require exact candidate authorization, matching
 source terms, explicit zero provider paid count, no current paid period or local
@@ -2166,9 +2153,9 @@ is left for reconciliation. Razorpay offers no atomic read-and-conditional-cance
 operation here; a provider transition after the final read remains a distributed
 race requiring provider-side sandbox observation before release.
 
-No schema migration, seed, package update or saved environment change is required.
-Release still requires observed Test checkout/callback/webhook evidence and the
-existing approved Live-canary procedure. Local unit/browser simulations and a
+The October gateway change used the existing schema. The branch billing rollout
+requires its forward migrations and observed Test checkout, callback and signed
+webhook evidence before an operator authorizes Live billing. Local unit/browser simulations and a
 successful Test API read do not establish those external outcomes.
 
 The webhook endpoint is `POST /api/razorpay/webhook`. It requires a valid
@@ -2265,37 +2252,19 @@ compatible forward fix.
 
 ### Trial branch removal review
 
-The 2026-11-18 billing correction uses existing tables. Check the hourly
-billing deadline's `errors` for affected organization IDs. It holds archival
-when scheduled removals would leave zero billable branches, or when a
-provider-free trial removal conflicts with the current mandate quantity.
-For a current mandate, start with the count of active branches and branches
-pending activation. Add back each later queued removal for the same mandate
-and subtract each later queued addition or reactivation. This is the quantity
-the provider should cover when the earlier removal archives.
-An unresolved first checkout can also trigger the hold. Compare its frozen
-`authorizedQuantity` with the continuing branch count even when the first
-provider response was lost and the subscription has no local record. A missing
-or mismatched quantity requires reconciliation with the original provider
-operation before archival.
+Select the branch in Account Billing and inspect its removal receipt, effective
+date, Undo cutoff, current mandate and any pending cancellation. The deadline
+worker requires another active or pending branch before it archives this one.
+When cancellation is required, verify the same-mode provider state, matching
+cancellation receipt and absence of an unresolved attempt. An outstanding or
+uncertain action must be reconciled on that agreement.
 
-Previously applied removals are outside the deadline queue. To review those
-cases, identify workspaces with a provider-free `BRANCH_REMOVAL` marked
-`APPLIED` at the trial boundary. Compare the first authorization's timestamp
-and frozen quantity with the branches scheduled to continue on that date,
-using the branch billing-change history. Later additions and removals can
-make today's branch count different from the correct historical quantity.
-
-For each reported workspace, compare the affected branch statuses and removal
-dates with the frozen checkout intent, subscription quantity and same-mode
-Razorpay records. For all-branch schedules, confirm with the owner which branch
-should remain and use an approved tenant-scoped repair if the undo deadline has
-passed. For an existing mandate with excess quantity, arrange an
-owner-authorized correction and review any invoice already issued. Preserve
-the original intent, audit trail and provider evidence. After the correction,
-verify the next deadline run and the resulting branch count. The application
-does not automatically modify a prior charge or reauthorize a historical mandate.
-
+For a closure scheduled before branch billing, inspect the tenant's initialization
+counts. A definite provider-free removal retains its original receipt and dates
+and receives a branch-scoped closure record. An unresolved historical closure
+needs owner and operator review of the original mandate, approvals and invoices.
+Keep its provider obligations and outstanding charges on the original record.
+Follow [initialization and recovery](billing/independent-branch-rollout.md).
 ### Initial subscription-provisioning migration
 
 The September 5 replacement-provisioning and source-cancellation changes reuse
@@ -2407,8 +2376,8 @@ non-null `regclass` values, the exact pre-migration billing-change count,
 `unexpectedly_initialized_existing_count = 0`, `audit_count = 0`, and clean
 migration status. Then promote the new provisioning code while writes remain
 held. In isolated Test mode, create one checkout and verify an intent-created,
-call-admitted, and provider-state-adopted audit sequence before releasing a
-single allowlisted canary and then the broader billing-write gate.
+call-admitted, and provider-state-adopted audit sequence before releasing the installation-wide
+billing write pause after the target checks pass.
 
 For rollback, re-establish the billing-write hold and drain every new request and
 lease. Retain the additive columns, audit ledger, and all provider/local
@@ -2423,7 +2392,7 @@ flight. There is no automatic down migration; prefer a compatible forward fix.
    authentication elsewhere. Confirm any Preview Deployment Protection
    exception with the operator.
 3. Configure exactly the approved event set in the
-   [Workspace billing V2 rollout](./workspace-billing-rollout.md) and
+   [Branch billing provider setup](./workspace-billing-rollout.md) and
    [Razorpay live-review checklist](./razorpay-live-review.md).
 4. Send a provider-signed Test delivery, require `2xx`, and verify one durable
    receipt with `attemptCount = 1` and provider-authoritative reconciliation.
@@ -2446,17 +2415,12 @@ error categories.
 
 ### Billing release controls
 
-Billing changes are deliberately staged by
-`RAZORPAY_BILLING_WRITES_ENABLED`,
-`RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED`,
-`RAZORPAY_LIVE_CANARY_ORG_IDS`, and
-`WORKSPACE_BRANCH_BILLING_V2_ENABLED`. An environment-variable change is not
-active until a new deployment uses it.
+Branch billing is the active product. Set `RAZORPAY_BILLING_WRITES_ENABLED=false` during an emergency pause. Configure `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED` for supported recurring methods. Redeploy after a configuration change.
 
 `RAZORPAY_BILLING_WRITES_ENABLED` is not a complete billing kill switch. Signed
 webhooks, provider reconciliation, or work already in progress can still change
 local state. When a billing incident requires a full worker pause, separately
-disable the hourly cron and allow active mutation leases/provider requests to
+disable the hourly cron and allow active branch mutation leases and provider requests to
 drain according to the incident decision.
 
 Use the repository scripts as follows:
@@ -2465,14 +2429,7 @@ Use the repository scripts as follows:
   it for the selected target with explicit expectations from the detailed
   billing runbook. It can assert an exact target with
   `--expect-database-fingerprint=<SHA256>`.
-- `scripts/prepare-workspace-billing-rollout.ts` is a dry run unless `--apply`
-  is present. Selecting promotion targets uses
-  `--promote=<comma-separated-org-ids>`; selection alone does not apply changes.
-  Promotion refuses any existing current subscription whose `paidThrough` or
-  paid status lacks the same exact stored settlement evidence used by runtime
-  entitlement. Apply takes the organization mutation lock, reloads subscription
-  evidence, branch count, billing model, and mutation sequence, and reruns all
-  guards before promotion.
+- Historical promotion commands exit before opening a database. Use the branch initialization procedure.
 - `scripts/reconcile-legacy-paid-entitlements.ts` is provider-read-only and a
   database dry run unless `--apply` is present. Both modes require an explicit
   organization allowlist and expected Razorpay mode. Apply additionally requires
@@ -2481,7 +2438,7 @@ Use the repository scripts as follows:
 - `scripts/audit-legacy-unsupported-method-cancellations.ts` is a dry run unless
   `--apply` is present. Resolve every manual-review row before any apply run.
 
-All three scripts parse `BILLING_ENV_FILE` into a fresh allowlisted environment
+The active billing scripts parse `BILLING_ENV_FILE` into a fresh allowlisted environment
 before dynamically importing Prisma or Razorpay code. A missing file or a
 conflicting ambient `DATABASE_URL`, `ACCELERATE_URL`, `RAZORPAY_MODE`,
 `RAZORPAY_KEY_ID`, or `VERCEL_ENV` stops the command. Unknown file variables are
@@ -2508,8 +2465,7 @@ An apply run requires all of the following in addition to the selected
 
 The organization IDs are normalized, sorted, and represented in output by only
 a count and SHA-256 set fingerprint. Every candidate query, write, and provider
-fetch is filtered to that allowlist. Promotion IDs must be a subset of the same
-allowlist. Run a dry audit with the identical scope and IDs immediately before
+fetch is filtered to that allowlist. Run a dry audit with the identical scope and IDs immediately before
 apply; an unscoped dry run may be used only for read-only discovery. The script
 reads the database identity through Prisma's selected connection and compares
 it to the expected fingerprint before any scoped work. A copied apply command
@@ -2518,10 +2474,14 @@ deployment environment, or implicit/broader tenant set.
 
 Retain preflight fingerprints and redacted aggregate reports privately. Never
 publish organization, subscription, payment, or credential values. Follow the
-full Preview acceptance, Live canary, provider-Dashboard, migration, and flag
-sequence in the [Workspace billing V2 rollout](./workspace-billing-rollout.md).
+full Preview acceptance, provider-Dashboard, migration, and incident-control
+sequence in the [Branch billing provider setup](./workspace-billing-rollout.md).
 
-### Legacy paid-entitlement transition
+### Historical aggregate settlement investigation
+
+These steps apply to original aggregate records on a database that still has
+`LEGACY` organizations. The script skips organizations initialized as
+`BRANCH_V3`. Current branch billing uses the scoped [initialization and recovery procedure](billing/independent-branch-rollout.md).
 
 Finding 5 uses the exact-commercial-evidence schema already deployed by
 `20260829120000_add_exact_commercial_evidence`; it adds no migration or new
@@ -2529,7 +2489,7 @@ environment variable. Do not infer or bulk-write paid state from
 `AUTHENTICATED`, `ACTIVE`, or a future `paidThrough`.
 
 Before applying the shared entitlement gate to a target, take the approved
-backup, hold Razorpay writes and Live canaries, pause only the hourly billing
+backup, hold Razorpay writes, pause only the hourly billing
 schedule through the operator control, and let active billing leases drain.
 Use small, reviewed organization batches. The Production dry run is:
 
@@ -2562,16 +2522,11 @@ reviewed exact-apply dispositions, require every unresolved record to appear in
 manual review, and rerun the dry command to prove idempotence. Retain the
 redacted pre/apply/post reports privately.
 
-Only after those counts are reconciled should the exact entitlement code be
-released and any organization be considered for Workspace V2 promotion. The
-rollout audit rejects unbacked paid state independently. Resume the hourly
-schedule and billing writes only after legacy Basic fallback, exact paid access,
-trial access, manual-review visibility, and provider-mode isolation pass the
-target smoke tests.
+Keep historical evidence on the original subscription. Branch initialization and access use the current branch billing procedure.
 
 There is no destructive rollback for this transition. Do not delete exact
 invoice/payment/intent lineage or clear manual-review history. If rollout
-verification fails, keep billing writes and V2 promotion held, preserve the
+verification fails, keep provider writes paused, preserve the
 reports, and deploy a compatible forward repair. An application rollback must
 not restore status-only premium entitlement; provider reconciliation remains the
 recovery path.
@@ -2586,7 +2541,7 @@ recovery path.
 | Import Workflow | Holding `IMPORT_V2_ENABLED` in a new deployment stops new starts only. Existing deployment-pinned runs must be drained or explicitly cancelled; completed items and the PostgreSQL ledger are not rolled back. |
 | Razorpay | An application rollback does not cancel, refund, or reverse provider subscriptions, mandates, invoices, payments, or webhook delivery. Reconcile provider and local state; ambiguous cases require manual review. |
 | Meta WhatsApp | Holding integration/onboarding/template/message/planners/report/notice/health/operations/webhook flags, clearing every canary, and separately pausing WhatsApp schedules stops new work only after the new deployment/control is active. It does not undo an in-flight provider result, WABA/system-user subscription, phone registration, template creation, accepted/unknown message, report snapshot, notice, incident, budget state, sender evidence, or customer-owned asset. Preserve history and prefer forward reconciliation; local disconnect is deliberately non-destructive. |
-| Scheduled jobs | Disable or update schedules through the approved Vercel control, then verify the active Cron Jobs dashboard. Do not assume deployment rollback paused them. |
+| Scheduled jobs | Disable or update schedules through the approved Vercel control, then verify their state in the Schedules view. Do not assume deployment rollback paused them. |
 
 Vercel's official
 [Production rollback guidance](https://vercel.com/docs/deployments/rollback-production-deployment)
@@ -2625,8 +2580,8 @@ and provider state.
 - For a bad but schema-compatible application deployment, use the approved
   Vercel rollback or deploy a fixed artifact, then verify current database and
   provider compatibility.
-- For a billing incident, deploy with billing writes held, remove any canary
-  allowlist, separately disable the hourly cron when required, and let in-flight
+- For a billing incident, deploy the installation-wide billing write pause,
+  separately disable the hourly cron when required, and let in-flight
   leases settle. Continue accepting valid signed webhooks unless the incident
   commander determines webhook processing itself is harmful; provider evidence
   is needed for reconciliation.
@@ -2648,7 +2603,7 @@ and provider state.
   delete history, release an ambiguous reservation,
   blindly repeat a provider mutation, change a payment/student, share credit, or
   perform a destructive provider disconnect.
-- For a runaway or compromised cron, disable Vercel Cron Jobs through the
+- For a runaway or compromised cron, disable the affected named schedule through the
   approved dashboard procedure. Rotate `CRON_SECRET` and redeploy if the secret
   was exposed.
 - For a credential incident, create/rotate at the provider, update the narrowly
@@ -2744,7 +2699,7 @@ Remaining risks and owners:
 
 ## Related repository guidance
 
-- [Workspace billing V2 rollout](./workspace-billing-rollout.md)
+- [Branch billing provider setup](./workspace-billing-rollout.md)
 - [Razorpay live-review checklist](./razorpay-live-review.md)
 - [Auth environments](./auth-environments.md)
 - [Import Workflow execution proposal](./decisions/0001-managed-workflow-for-import-execution.md) — Proposed, not Accepted
@@ -3142,13 +3097,7 @@ Follow [the catalogue cutover runbook](billing/three-plan-cutover.md) before app
 
 ### Three-plan release preparation and cron hosting gate
 
-The [release preparation handoff](billing/three-plan-cutover.md#release-preparation-follow-up--2026-10-23)
-records the five sub-daily schedules rejected by Vercel Hobby and the owner
-decision to upgrade the same project to Pro after approximately one week.
-The Hobby failure is an intentional hold; no alternative scheduler is selected.
-Retain the eight schedules and existing credentials/leases. An account purchase,
-scheduler replacement, deployment or Production operation needs its own explicit
-authorization; this preparation performs none of them.
+Use the eight named, authenticated GET schedules in [branch billing operations](billing/independent-branch-rollout.md). The five-minute sender requires a Vercel plan with sub-15-minute Schedules. Check the team plan and deployed schedule status during release.
 
 The read-only inventory now includes a bounded, consistent JSON readiness
 summary. Run with SQL stop-on-error, keep full output private, and treat timeout
@@ -3186,7 +3135,7 @@ settings into any deployment.
 
 No new migration, package, production environment setting or provider action is
 required. Keep all existing three-plan cutover/provider prerequisites and the
-intentional Vercel Pro hold. Reverting Basic presentation must not revert billing
+documented schedule requirements. Reverting Basic presentation must not revert billing
 migrations or delete operational history; removing the narrowed feature policy
 would require a separate product decision.
 
