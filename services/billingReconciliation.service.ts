@@ -1,5 +1,5 @@
 import { billingTransaction, billingRecordScope, currentSlot, isPendingSlot, isRetiredAggregateReceipt, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
-import { isPaymentRecoveryAuthorization } from "@/lib/billingState";
+import { isPaymentRecoveryAuthorization, isRecoverableMandateStatus } from "@/lib/billingState";
 import {
   BillingManualReviewRequiredError,
   BillingResourceNotFoundError,
@@ -30,6 +30,7 @@ import { confirmReconciledBillingProviderAction } from "@/services/billingProvid
 import {
   isSupportedProviderPaymentMethod,
   normalizeProviderPaymentMethod,
+  safeRazorpayHostedUrl,
 } from "@/services/billingPaymentMethod.service";
 import type {
   OrganizationBillingChange,
@@ -51,9 +52,11 @@ type BillingReconciliationResult = {
   commercialIntentChangeId: string | null;
   payment: RazorpayPayment | null;
   invoices: RazorpayInvoices;
+  recoveryCheckoutMethod?: { hostedRecoveryUrl: string } | { subscription_card_change: true };
 };
 
 type ReconciliationOptions = {
+  includeRecoveryCheckoutMethod?: boolean;
   paymentId?: string | null;
   now?: Date;
   commercialIntentChangeId?: string | null;
@@ -601,6 +604,17 @@ export class BillingReconciliationService {
     }
     const negativeLifecycle = ["pending", "paused", "halted", "cancelled", "completed", "expired"]
       .includes(providerSubscription.status.toLowerCase());
+    // Only an explicit resume may receive a method from this exact provider read.
+    // Passive polling and webhook reconciliation never expose a hosted payment link.
+    let recoveryCheckoutMethod: BillingReconciliationResult["recoveryCheckoutMethod"];
+    if (options.includeRecoveryCheckoutMethod && intent && isPaymentRecoveryAuthorization(intent)
+      && intent.id === options.commercialIntentChangeId && isRecoverableMandateStatus(providerSubscription.status)) {
+      const hostedRecoveryUrl = safeRazorpayHostedUrl(providerSubscription.short_url);
+      const method = providerSubscription.payment_method == null ? localBeforeFetch.providerPaymentMethod
+        : normalizeProviderPaymentMethod(providerSubscription.payment_method);
+      if (hostedRecoveryUrl) recoveryCheckoutMethod = { hostedRecoveryUrl };
+      else if (method === "CARD") recoveryCheckoutMethod = { subscription_card_change: true };
+    }
     const branchCurrent = localBeforeFetch.agreementBranchId != null
       && localBeforeFetch.currentAgreementBranchId === localBeforeFetch.agreementBranchId;
     if ((branchCurrent || isPendingSlot(localBeforeFetch, localBeforeFetch.organizationId)) && negativeLifecycle) {
@@ -680,7 +694,7 @@ export class BillingReconciliationService {
           return this.reconcileProviderSubscription(razorpaySubscriptionId, { ...options, paymentId: null }, staleRetry);
         }
         return { subscription: localBeforeFetch, confirmedPaidPeriod: false, evidenceKind: "PENDING",
-          commercialIntentChangeId: intent?.id ?? null, payment: null, invoices };
+          commercialIntentChangeId: intent?.id ?? null, payment: null, invoices, recoveryCheckoutMethod };
       }
       if (recovering) return quarantineCommercialMismatch({ local: localBeforeFetch, intent,
         code: "STALE_SETTLEMENT", now, options });
@@ -713,6 +727,7 @@ export class BillingReconciliationService {
           subscription: localBeforeFetch,
           confirmedPaidPeriod: false,
           evidenceKind: "DEFINITELY_REJECTED",
+          recoveryCheckoutMethod,
           commercialIntentChangeId: intent?.id ?? null,
           payment,
           invoices,
@@ -794,6 +809,7 @@ export class BillingReconciliationService {
           subscription: recovered.stored,
           confirmedPaidPeriod: false,
           evidenceKind: "PENDING",
+          recoveryCheckoutMethod,
           commercialIntentChangeId: intent?.id ?? null,
           payment,
           invoices,
@@ -803,6 +819,7 @@ export class BillingReconciliationService {
         subscription: localBeforeFetch,
         confirmedPaidPeriod: false,
         evidenceKind: "PENDING",
+        recoveryCheckoutMethod,
         commercialIntentChangeId: intent?.id ?? null,
         payment,
         invoices,

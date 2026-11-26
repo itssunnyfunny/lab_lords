@@ -1,6 +1,7 @@
 import { billingPlanName, billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
 import type { BranchBillingStatus, SaasSubscriptionStatus } from "@/app/generated/prisma/enums";
 import type { BillingExperience } from "@/types/billingExperience";
+import type { OrganizationBillingChange, OrganizationSubscription } from "@/app/generated/prisma/client";
 
 /** Branches counted when checking that a workspace retains a billable branch. */
 export const projectedBillableStatuses: BranchBillingStatus[] = ["ACTIVE", "PENDING_ACTIVATION"];
@@ -9,6 +10,35 @@ export const TERMINAL_STATUSES = new Set<SaasSubscriptionStatus>(["CANCELLED", "
 /** Recovery uses the existing mandate and requires the next settled invoice. */
 export function isPaymentRecoveryAuthorization(change: { type: string; idempotencyKey: string }) {
   return change.type === "SUBSCRIPTION_AUTHORIZATION" && change.idempotencyKey.startsWith("payment-recovery:");
+}
+
+export function isRecoverableMandateStatus(status: string) {
+  return ["PENDING", "HALTED", "PAUSED"].includes(status.toUpperCase());
+}
+
+export function canResumePaymentRecovery(
+  change: Pick<OrganizationBillingChange, "type" | "idempotencyKey" | "agreementBranchId" | "organizationId"
+    | "organizationSubscriptionId" | "authorizedRazorpaySubscriptionId" | "authorizedProviderMode"
+    | "operationStatus" | "status" | "failureCategory" | "resolvedAt" | "sequence"> | null | undefined,
+  subscription: Pick<OrganizationSubscription, "id" | "organizationId" | "agreementBranchId" | "currentAgreementBranchId"
+    | "razorpaySubscriptionId" | "providerMode" | "status"> | null | undefined,
+  branchStatus: BranchBillingStatus | null | undefined,
+  latestSequence?: number,
+) {
+  if (!change?.agreementBranchId || !subscription || !branchStatus || !projectedBillableStatuses.includes(branchStatus)
+    || !isPaymentRecoveryAuthorization(change) || change.failureCategory === "MANUAL_REVIEW_REQUIRED") return false;
+  const pending = change.status === "AWAITING_PAYMENT" && !change.resolvedAt
+    && ["CHECKOUT_OPEN", "AWAITING_PROVIDER_CONFIRMATION"].includes(change.operationStatus);
+  // Earlier clients recorded dismissal as Undo. Reuse it only while it is still the latest intent.
+  const dismissed = change.status === "UNDONE" && change.operationStatus === "ABANDONED"
+    && change.failureCategory === "CHECKOUT_ABANDONED" && change.sequence === latestSequence;
+  return (pending || dismissed)
+    && change.agreementBranchId === subscription.agreementBranchId
+    && change.agreementBranchId === subscription.currentAgreementBranchId
+    && change.organizationId === subscription.organizationId && change.organizationSubscriptionId === subscription.id
+    && change.authorizedProviderMode === subscription.providerMode
+    && change.authorizedRazorpaySubscriptionId === subscription.razorpaySubscriptionId
+    && isRecoverableMandateStatus(subscription.status);
 }
 
 export function needsSourceCancellationReview(change: { failureCategory?: string | null; failureCode?: string | null } | null | undefined) {
