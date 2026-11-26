@@ -1,3 +1,4 @@
+import { withSystemBillingScope } from "@/services/billingAgreementScope.service";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BillingDeadlineService,
@@ -7,7 +8,7 @@ import { setRazorpayClientForTests, type RazorpayApiClient } from "@/lib/razorpa
 import { createBranch, createOrg, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 
-describe("workspace billing deadlines", () => {
+describe("branch billing deadlines", () => {
   beforeEach(async () => { await resetDatabase(); });
   afterEach(() => {
     setRazorpayClientForTests(null);
@@ -16,7 +17,7 @@ describe("workspace billing deadlines", () => {
   afterAll(async () => { await disconnectDatabase(); });
 
   function checkoutClient(
-    status: "created" | "authenticated",
+    status: "created" | "authenticated" | "expired",
     paymentMethod?: "card" | "upi" | "emandate"
   ): RazorpayApiClient {
     return {
@@ -41,6 +42,7 @@ describe("workspace billing deadlines", () => {
       fetchSubscription: vi.fn(async () => ({
         id: "sub_deadline",
         entity: "subscription" as const,
+        notes: { branch_agreement_id: "branch_deadline" },
         plan_id: "plan_basic",
         status,
         total_count: 120,
@@ -85,6 +87,7 @@ describe("workspace billing deadlines", () => {
 
   async function attachConfirmedDeadlineIntent(input: {
     organizationId: string;
+    branchId: string;
     subscriptionId: string;
     idempotencyKey: string;
     confirmedAt: Date;
@@ -92,6 +95,7 @@ describe("workspace billing deadlines", () => {
     const intent = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: input.organizationId,
+        agreementBranchId: input.branchId,
         organizationSubscriptionId: input.subscriptionId,
         sequence: 1,
         idempotencyKey: input.idempotencyKey,
@@ -105,8 +109,8 @@ describe("workspace billing deadlines", () => {
       },
     });
     await Promise.all([
-      testPrisma.organization.update({
-        where: { id: input.organizationId },
+      testPrisma.branchBillingAgreement.update({
+        where: { branchId: input.branchId },
         data: { billingMutationSequence: 1 },
       }),
       testPrisma.organizationSubscription.update({
@@ -120,7 +124,7 @@ describe("workspace billing deadlines", () => {
   it("expires a trial and archives a provider-free scheduled branch at its boundary", async () => {
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
     await createBranch({ organizationId: organization.id, name: "Main" });
     const branch = await createBranch({ organizationId: organization.id, name: "Closing" });
     await testPrisma.branch.update({
@@ -141,13 +145,14 @@ describe("workspace billing deadlines", () => {
     await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         branchId: branch.id,
         sequence: 1,
         idempotencyKey: "deadline-removal",
         type: "BRANCH_REMOVAL",
         status: "SCHEDULED",
-        fromQuantity: 2,
-        toQuantity: 1,
+        fromQuantity: 1,
+        toQuantity: 0,
         effectiveAt: new Date("2026-09-02T00:00:00.000Z"),
       },
     });
@@ -164,20 +169,22 @@ describe("workspace billing deadlines", () => {
   it("recovers only the exact expired lease snapshot and never a successor lease", async () => {
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         sequence: 1,
         idempotencyKey: "stale-lease-change",
-        type: "QUANTITY_INCREASE",
+        type: "PLAN_UPGRADE",
         status: "PROCESSING",
         attemptCount: 1,
         processingStartedAt: new Date("2026-09-02T23:55:00.000Z"),
       },
     });
-    await testPrisma.organization.update({
-      where: { id: organization.id },
+    await testPrisma.branchBillingAgreement.update({
+      where: { branchId: branch.id },
       data: {
         billingMutationLeaseToken: "stale-lease",
         billingMutationLeaseUntil: new Date("2026-09-02T23:59:00.000Z"),
@@ -188,25 +195,25 @@ describe("workspace billing deadlines", () => {
       billingMutationLeaseToken: "stale-lease",
     };
 
-    await testPrisma.organization.update({
-      where: { id: organization.id },
+    await testPrisma.branchBillingAgreement.update({
+      where: { branchId: branch.id },
       data: {
         billingMutationLeaseToken: "successor-lease",
         billingMutationLeaseUntil: new Date("2026-09-03T00:02:00.000Z"),
       },
     });
 
-    await expect(recoverExpiredBillingMutationLease(staleSnapshot, now)).resolves.toBe(false);
-    await expect(testPrisma.organization.findUniqueOrThrow({ where: { id: organization.id } }))
+    await expect(withSystemBillingScope({organizationId: organization.id, branchId: branch.id}, () => recoverExpiredBillingMutationLease(staleSnapshot, now))).resolves.toBe(false);
+    await expect(testPrisma.branchBillingAgreement.findUniqueOrThrow({ where: { branchId: branch.id } }))
       .resolves.toMatchObject({ billingMutationLeaseToken: "successor-lease" });
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
       .resolves.toMatchObject({ status: "PROCESSING", attemptCount: 1 });
 
-    await expect(recoverExpiredBillingMutationLease({
+    await expect(withSystemBillingScope({organizationId: organization.id, branchId: branch.id}, () => recoverExpiredBillingMutationLease({
       id: organization.id,
       billingMutationLeaseToken: "successor-lease",
-    }, new Date("2026-09-03T00:03:00.000Z"))).resolves.toBe(true);
-    await expect(testPrisma.organization.findUniqueOrThrow({ where: { id: organization.id } }))
+    }, new Date("2026-09-03T00:03:00.000Z")))).resolves.toBe(true);
+    await expect(testPrisma.branchBillingAgreement.findUniqueOrThrow({ where: { branchId: branch.id } }))
       .resolves.toMatchObject({ billingMutationLeaseToken: null, billingMutationLeaseUntil: null });
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
       .resolves.toMatchObject({
@@ -219,13 +226,15 @@ describe("workspace billing deadlines", () => {
       });
   });
 
-  it("quarantines and releases an expired LEGACY provisioning lease", async () => {
+  it("quarantines and releases an expired branch provisioning lease", async () => {
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "LEGACY" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id });
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         sequence: 1,
         idempotencyKey: "legacy-expired-provisioning",
         type: "SUBSCRIPTION_AUTHORIZATION",
@@ -235,8 +244,8 @@ describe("workspace billing deadlines", () => {
         processingStartedAt: new Date("2026-09-02T23:55:00.000Z"),
       },
     });
-    await testPrisma.organization.update({
-      where: { id: organization.id },
+    await testPrisma.branchBillingAgreement.update({
+      where: { branchId: branch.id },
       data: {
         billingMutationLeaseToken: "legacy-expired-lease",
         billingMutationLeaseUntil: new Date("2026-09-02T23:59:00.000Z"),
@@ -247,7 +256,7 @@ describe("workspace billing deadlines", () => {
       recoveredLeases: 1,
       errors: [],
     });
-    await expect(testPrisma.organization.findUniqueOrThrow({ where: { id: organization.id } }))
+    await expect(testPrisma.branchBillingAgreement.findUniqueOrThrow({ where: { branchId: branch.id } }))
       .resolves.toMatchObject({ billingMutationLeaseToken: null, billingMutationLeaseUntil: null });
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
       .resolves.toMatchObject({
@@ -262,11 +271,13 @@ describe("workspace billing deadlines", () => {
   it("quarantines an expired scheduled-change undo attempt with its exact attempt identity", async () => {
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const processingStartedAt = new Date("2026-09-02T23:55:00.000Z");
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         sequence: 1,
         idempotencyKey: "expired-scheduled-undo",
         type: "PLAN_DOWNGRADE",
@@ -277,18 +288,18 @@ describe("workspace billing deadlines", () => {
         failureCode: "SCHEDULED_UNDO_PROCESSING",
       },
     });
-    await testPrisma.organization.update({
-      where: { id: organization.id },
+    await testPrisma.branchBillingAgreement.update({
+      where: { branchId: branch.id },
       data: {
         billingMutationLeaseToken: "expired-scheduled-undo-lease",
         billingMutationLeaseUntil: new Date("2026-09-02T23:59:00.000Z"),
       },
     });
 
-    await expect(recoverExpiredBillingMutationLease({
+    await expect(withSystemBillingScope({organizationId: organization.id, branchId: branch.id}, () => recoverExpiredBillingMutationLease({
       id: organization.id,
       billingMutationLeaseToken: "expired-scheduled-undo-lease",
-    }, now)).resolves.toBe(true);
+    }, now))).resolves.toBe(true);
 
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
       .resolves.toMatchObject({
@@ -305,13 +316,15 @@ describe("workspace billing deadlines", () => {
   it("does not consume automatic retry attempts while billing writes are held", async () => {
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         sequence: 1,
         idempotencyKey: "held-failed-change",
-        type: "QUANTITY_INCREASE",
+        type: "PLAN_UPGRADE",
         status: "FAILED",
         operationStatus: "FAILED",
         attemptCount: 1,
@@ -333,14 +346,16 @@ describe("workspace billing deadlines", () => {
       });
   });
 
-  it("marks an unconfirmed Checkout operation failed after provider reconciliation at its deadline", async () => {
-    setRazorpayClientForTests(checkoutClient("created"));
+  it.each(["created", "expired"] as const)("resolves a late checkout according to the provider state %s", async status => {
+    setRazorpayClientForTests(checkoutClient(status));
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const subscription = await testPrisma.organizationSubscription.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         providerMode: "TEST",
         plan: "BASIC",
         amount: 99,
@@ -348,7 +363,7 @@ describe("workspace billing deadlines", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
-        currentOrganizationId: organization.id,
+        currentAgreementBranchId: branch.id,
         razorpaySubscriptionId: "sub_deadline",
         status: "CREATED",
         providerStartAt: new Date("2026-09-10T00:00:00.000Z"),
@@ -357,6 +372,7 @@ describe("workspace billing deadlines", () => {
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         organizationSubscriptionId: subscription.id,
         sequence: 1,
         idempotencyKey: "checkout-timeout",
@@ -370,25 +386,25 @@ describe("workspace billing deadlines", () => {
 
     const result = await BillingDeadlineService.run(now);
 
-    expect(result).toMatchObject({ timedOutCheckouts: 1, confirmedCheckouts: 0, errors: [] });
+    expect(result).toMatchObject({ timedOutCheckouts: status === "expired" ? 1 : 0, confirmedCheckouts: 0, errors: [] });
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
-      .resolves.toMatchObject({
-        status: "FAILED",
-        operationStatus: "FAILED",
-        failureCategory: "CONFIRMATION_TIMEOUT",
-      });
+      .resolves.toMatchObject(status === "expired" ? {
+        status: "FAILED", operationStatus: "FAILED", failureCategory: "CONFIRMATION_TIMEOUT",
+      } : { status: "AWAITING_PAYMENT", operationStatus: "AWAITING_PROVIDER_CONFIRMATION", resolvedAt: null });
   });
 
-  it("stops waiting after the deadline even when provider reconciliation is unavailable", async () => {
+  it("keeps the original checkout recoverable when the provider cannot be reached at its deadline", async () => {
     const client = checkoutClient("created");
     vi.mocked(client.fetchSubscription).mockRejectedValue(new Error("provider unavailable"));
     setRazorpayClientForTests(client);
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const subscription = await testPrisma.organizationSubscription.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         providerMode: "TEST",
         plan: "BASIC",
         amount: 99,
@@ -396,7 +412,7 @@ describe("workspace billing deadlines", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
-        currentOrganizationId: organization.id,
+        currentAgreementBranchId: branch.id,
         razorpaySubscriptionId: "sub_deadline_unavailable",
         status: "CREATED",
         providerStartAt: new Date("2026-09-10T00:00:00.000Z"),
@@ -405,6 +421,7 @@ describe("workspace billing deadlines", () => {
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         organizationSubscriptionId: subscription.id,
         sequence: 1,
         idempotencyKey: "checkout-timeout-provider-unavailable",
@@ -418,18 +435,19 @@ describe("workspace billing deadlines", () => {
 
     const result = await BillingDeadlineService.run(now);
 
-    expect(result.timedOutCheckouts).toBe(1);
+    expect(result.timedOutCheckouts).toBe(0);
     expect(result.errors).toEqual([
       expect.objectContaining({
         organizationId: organization.id,
+        branchId: branch.id,
         message: "provider unavailable",
       }),
     ]);
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
       .resolves.toMatchObject({
-        status: "FAILED",
-        operationStatus: "FAILED",
-        failureCategory: "CONFIRMATION_TIMEOUT",
+        status: "AWAITING_PAYMENT",
+        operationStatus: "AWAITING_PROVIDER_CONFIRMATION",
+        resolvedAt: null,
       });
   });
 
@@ -444,10 +462,12 @@ describe("workspace billing deadlines", () => {
     setRazorpayClientForTests(checkoutClient("authenticated", providerMethod));
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const subscription = await testPrisma.organizationSubscription.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         providerMode: "TEST",
         plan: "BASIC",
         amount: 99,
@@ -455,7 +475,7 @@ describe("workspace billing deadlines", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
-        currentOrganizationId: organization.id,
+        currentAgreementBranchId: branch.id,
         razorpaySubscriptionId: "sub_deadline",
         status: "CREATED",
         providerStartAt: new Date("2026-09-10T00:00:00.000Z"),
@@ -464,6 +484,7 @@ describe("workspace billing deadlines", () => {
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         organizationSubscriptionId: subscription.id,
         sequence: 1,
         idempotencyKey: "checkout-confirmed-at-deadline",
@@ -493,6 +514,7 @@ describe("workspace billing deadlines", () => {
     vi.mocked(client.cancelSubscription).mockResolvedValue({
       id: "sub_deadline",
       entity: "subscription",
+      notes: { branch_agreement_id: "branch_deadline" },
       plan_id: "plan_basic",
       status: "cancelled",
       total_count: 120,
@@ -502,10 +524,12 @@ describe("workspace billing deadlines", () => {
     });
     setRazorpayClientForTests(client);
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const subscription = await testPrisma.organizationSubscription.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         providerMode: "TEST",
         plan: "BASIC",
         amount: 99,
@@ -513,7 +537,7 @@ describe("workspace billing deadlines", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
-        currentOrganizationId: organization.id,
+        currentAgreementBranchId: branch.id,
         razorpaySubscriptionId: "sub_deadline",
         status: "AUTHENTICATED",
         providerPaymentMethod: "EMANDATE",
@@ -522,6 +546,7 @@ describe("workspace billing deadlines", () => {
     });
     await attachConfirmedDeadlineIntent({
       organizationId: organization.id,
+      branchId: branch.id,
       subscriptionId: subscription.id,
       idempotencyKey: "emandate-lapse-confirmed-intent",
       confirmedAt: new Date("2026-09-01T00:00:00.000Z"),
@@ -535,7 +560,7 @@ describe("workspace billing deadlines", () => {
     await expect(testPrisma.organizationSubscription.findUniqueOrThrow({
       where: { id: subscription.id },
     })).resolves.toMatchObject({
-      currentOrganizationId: organization.id,
+      currentAgreementBranchId: branch.id,
       status: "AUTHENTICATED",
       authorizationLapsedAt: null,
       paidThrough: null,
@@ -550,7 +575,7 @@ describe("workspace billing deadlines", () => {
     await expect(testPrisma.organizationSubscription.findUniqueOrThrow({
       where: { id: subscription.id },
     })).resolves.toMatchObject({
-      currentOrganizationId: organization.id,
+      currentAgreementBranchId: branch.id,
       razorpaySubscriptionId: "sub_deadline",
       status: "CANCELLED",
       authorizationLapsedAt: lapsedAt,
@@ -576,6 +601,7 @@ describe("workspace billing deadlines", () => {
     vi.mocked(client.cancelSubscription).mockResolvedValue({
       id: "sub_deadline",
       entity: "subscription",
+      notes: { branch_agreement_id: "branch_deadline" },
       plan_id: "plan_basic",
       status: "cancelled",
       total_count: 120,
@@ -585,10 +611,12 @@ describe("workspace billing deadlines", () => {
     });
     setRazorpayClientForTests(client);
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const subscription = await testPrisma.organizationSubscription.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         providerMode: "TEST",
         plan: "BASIC",
         amount: 99,
@@ -596,7 +624,7 @@ describe("workspace billing deadlines", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
-        currentOrganizationId: organization.id,
+        currentAgreementBranchId: branch.id,
         razorpaySubscriptionId: "sub_deadline",
         status: "AUTHENTICATED",
         providerPaymentMethod: "EMANDATE",
@@ -606,6 +634,7 @@ describe("workspace billing deadlines", () => {
     });
     await attachConfirmedDeadlineIntent({
       organizationId: organization.id,
+      branchId: branch.id,
       subscriptionId: subscription.id,
       idempotencyKey: "emandate-expiry-confirmed-intent",
       confirmedAt: new Date("2026-09-01T00:00:00.000Z"),
@@ -631,10 +660,12 @@ describe("workspace billing deadlines", () => {
     setRazorpayClientForTests(client);
     const now = new Date("2026-09-03T00:00:00.000Z");
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id, id: "branch_deadline" });
     const subscription = await testPrisma.organizationSubscription.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         providerMode: "TEST",
         plan: "BASIC",
         amount: 99,
@@ -642,7 +673,7 @@ describe("workspace billing deadlines", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
-        currentOrganizationId: organization.id,
+        currentAgreementBranchId: branch.id,
         razorpaySubscriptionId: "sub_deadline",
         status: "CREATED",
         providerPaymentMethod: "EMANDATE",
@@ -652,6 +683,7 @@ describe("workspace billing deadlines", () => {
     const change = await testPrisma.organizationBillingChange.create({
       data: {
         organizationId: organization.id,
+        agreementBranchId: branch.id,
         organizationSubscriptionId: subscription.id,
         sequence: 1,
         idempotencyKey: "emandate-confirmation-window",

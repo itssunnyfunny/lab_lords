@@ -8,12 +8,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    return NextResponse.json({ ok: true, ...await BillingDeadlineService.run() });
-  } catch (error) {
-    console.error("[WORKSPACE_BILLING_HOURLY_CRON]", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Workspace billing cron failed" },
-      { status: 500 }
-    );
+    const { errors, ...counts } = await BillingDeadlineService.run();
+    return NextResponse.json({ ok: errors.length === 0, ...counts, failed: errors.length }, {
+      status: errors.length ? 503 : 200,
+    });
+  } catch {
+    return NextResponse.json({ error: "Branch billing reconciliation failed" }, { status: 500 });
   }
 }
