@@ -1,6 +1,7 @@
 import { PrismaClient } from "../../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { assertDisposableTestDatabaseTarget } from "./testDatabaseSafety";
+import { clearHistoricalBillingFixtures } from "@/tests/factories/historicalBilling";
 
 /**
  * DB ISOLATION STRATEGY: Transaction Rollback Per Test
@@ -64,6 +65,7 @@ async function confirmExactDisposableDatabaseIdentity() {
 export async function resetDatabase() {
   // Reconfirm the live connection target immediately before every destructive reset.
   await confirmExactDisposableDatabaseIdentity();
+  clearHistoricalBillingFixtures();
 
   // TRUNCATE is a single atomic operation - faster than chained deleteMany()
   // CASCADE handles FK dependencies automatically, so order doesn't matter.
