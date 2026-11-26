@@ -1,10 +1,8 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { workspaceRolloutOrganizationScopes } from "@/scripts/prepare-workspace-billing-rollout";
 
 const scripts = [
-  "scripts/prepare-workspace-billing-rollout.ts",
   "scripts/audit-legacy-unsupported-method-cancellations.ts",
 ] as const;
 
@@ -34,11 +32,9 @@ describe.each(scripts)("%s command boundary", script => {
   });
 });
 
-describe("workspace rollout organization scope", () => {
-  it("builds filters for both owner eligibility and branch backfill queries", () => {
-    expect(workspaceRolloutOrganizationScopes(["org_a", "org_b"])).toEqual({
-      organization: { id: { in: ["org_a", "org_b"] } },
-      branch: { organizationId: { in: ["org_a", "org_b"] } },
-    });
-  });
+it("rejects retired aggregate promotion before opening a database or provider connection", () => {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/prepare-workspace-billing-rollout.ts",
+    "--apply", "--promote=example"], { encoding: "utf8" });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("Aggregate billing promotion has been retired");
 });
