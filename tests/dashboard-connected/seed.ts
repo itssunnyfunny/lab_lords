@@ -35,15 +35,16 @@ try {
     const staff = await db.user.create({ data: { id: "dashboard-staff", clerkId: clerkSubject(process.env.PLAYWRIGHT_STAFF_AUTH_STATE || ".clerk/rc-staff.json"),
         name: "Sample Staff", email: "dashboard-staff@example.invalid" } });
     const outsider = await db.user.create({ data: { id: "dashboard-outsider", name: "Synthetic other owner", email: "dashboard-other@example.invalid" } });
-    const organization = await db.organization.create({ data: { id: "dashboard-organization", name: "Lab Lords", ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" } });
+    const organization = await db.organization.create({ data: { id: "dashboard-organization", name: "Lab Lords", ownerId: owner.id } });
     await db.ownerTrialGrant.create({ data: { ownerId: owner.id, organizationId: organization.id, source: "ONBOARDING", status: "ACTIVE",
-        claimedAt: now, trialStartedAt: now, trialEndsAt: new Date(now.getTime() + 7 * 86_400_000) } });
-    const branch = await db.branch.create({ data: { id: "dashboard-shanti", organizationId: organization.id, name: "Shanti Study Library", city: "Lucknow, Uttar Pradesh", aiEnabled: false } });
-    const otherBranch = await db.branch.create({ data: { id: "dashboard-north", organizationId: organization.id, name: "North Reading Room", aiEnabled: false } });
+        claimedAt: now, consumedAt: now, trialStartedAt: now, trialEndsAt: new Date(now.getTime() + 7 * 86_400_000) } });
+    const agreement = { create: { selectedPlan: "STANDARD" as const } };
+    const branch = await db.branch.create({ data: { id: "dashboard-shanti", organizationId: organization.id, name: "Shanti Study Library", city: "Lucknow, Uttar Pradesh", aiEnabled: false, billingAgreement: agreement } });
+    const otherBranch = await db.branch.create({ data: { id: "dashboard-north", organizationId: organization.id, name: "North Reading Room", aiEnabled: false, billingAgreement: agreement } });
     const foreignOrg = await db.organization.create({ data: { id: "dashboard-foreign-org", ownerId: outsider.id, name: "Other synthetic organization" } });
-    const foreignBranch = await db.branch.create({ data: { id: "dashboard-foreign", organizationId: foreignOrg.id, name: "Other synthetic branch", aiEnabled: false } });
-    const readonlyOrg = await db.organization.create({ data: { id: "dashboard-readonly-org", ownerId: owner.id, name: "Read-only synthetic workspace", billingModelVersion: "WORKSPACE_V2" } });
-    const readonlyBranch = await db.branch.create({ data: { id: "dashboard-readonly", organizationId: readonlyOrg.id, name: "Read-only branch", aiEnabled: false } });
+    const foreignBranch = await db.branch.create({ data: { id: "dashboard-foreign", organizationId: foreignOrg.id, name: "Other synthetic branch", aiEnabled: false, billingAgreement: agreement } });
+    const readonlyOrg = await db.organization.create({ data: { id: "dashboard-readonly-org", ownerId: owner.id, name: "Read-only synthetic workspace" } });
+    const readonlyBranch = await db.branch.create({ data: { id: "dashboard-readonly", organizationId: readonlyOrg.id, name: "Read-only branch", aiEnabled: false, billingAgreement: agreement } });
     const staffMembership = await db.staff.create({ data: { userId: staff.id, branchId: branch.id, role: "STAFF" } });
     await db.staffPermissionOverride.create({ data: { staffId: staffMembership.id, action: "VIEW_PAYMENTS", allowed: false } });
     const shifts = await Promise.all([

@@ -11,19 +11,21 @@ const root="/branch/"+f.branchId;
 const screenshots="test-results/basic-integration/";
 async function shot(page:Page,name:string){await expect(page.locator("[data-basic-workspace] .bp-empty[role=status], [data-basic-workspace] .bp-history [role=status]")).toHaveCount(0,{timeout:60000});await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:screenshots+name+".png",fullPage:true});}
 async function open(page:Page,path=root){await refreshDevelopmentSession(page);await page.goto(path);await expect(page.locator("[data-basic-workspace]")).toBeVisible({timeout:60000});}
-async function basicPlan(){
+async function setFixturePlan(plan: "BASIC" | "STANDARD" | "PRO") {
  const {createSaasSubscription}=await import("../factories");
- await db.organizationSubscription.updateMany({where:{currentOrganizationId:f.orgId},data:{currentOrganizationId:null}});
- await db.ownerTrialGrant.deleteMany({where:{organizationId:f.orgId}});
- await createSaasSubscription({organizationId:f.orgId,plan:"BASIC"});
+
+ await db.organizationSubscription.updateMany({where:{currentAgreementBranchId:f.branchId},data:{currentAgreementBranchId:null}});
+
+ await db.branchBillingAgreement.update({where:{branchId:f.branchId,organizationId:f.orgId},data:{selectedPlan:plan}});
+ await createSaasSubscription({organizationId:f.orgId,agreementBranchId:f.branchId,plan});
 }
 test.beforeAll(async()=>{
  const check=new Client({connectionString:process.env.TEST_DATABASE_URL});await check.connect();
  try{const value=await check.query('SELECT current_database() AS name,(SELECT count(*)::int FROM "Organization" WHERE "ownerId"=$1) AS owned',[f.ownerId]);if(value.rows[0]?.name!==f.databaseName||value.rows[0].owned!==1)throw new Error("Basic browser fixture proof failed");}finally{await check.end();}
  db=(await import("../setup/db")).testPrisma;mkdirSync(screenshots,{recursive:true});
 });
-test.beforeEach(async()=>{await basicPlan();await db.user.update({where:{id:f.ownerId},data:{interfaceLanguage:"en",timezone:"Asia/Kolkata"}});});
-test.afterAll(async()=>{if(db){await basicPlan();await db.$disconnect();}});
+test.beforeEach(async()=>{await setFixturePlan("BASIC");await db.user.update({where:{id:f.ownerId},data:{interfaceLanguage:"en",timezone:"Asia/Kolkata"}});});
+test.afterAll(async()=>{if(db){await setFixturePlan("BASIC");await db.$disconnect();}});
 test("real Basic admission, edit, assignment, move, partial fee, receipt, persistence and navigation",async({page})=>{
  const available=await db.seat.findMany({where:{branchId:f.branchId,seatAllocations:{none:{endDate:null}}},orderBy:{label:"desc"},take:2});expect(available).toHaveLength(2);
  await open(page);await expect(page.getByRole("heading",{name:"Your library overview"})).toBeVisible();await shot(page,"overview-desktop");
@@ -77,7 +79,7 @@ test("lost payment response recovers once after expiry without another write",as
  await page.getByRole("button",{name:"Record payment",exact:true}).click();
  const dialog=page.getByRole("dialog",{name:"Record a payment"});await dialog.getByLabel("Amount received",{exact:true}).fill("250");await dialog.getByRole("button",{name:"Record payment",exact:true}).click();
  await expect(dialog.getByRole("alert")).toBeVisible();expect(await db.feeCollection.count({where:{studentId:student.id}})).toBe(1);
- await db.organizationSubscription.updateMany({where:{currentOrganizationId:f.orgId},data:{status:"HALTED"}});
+ await db.organizationSubscription.updateMany({where:{currentAgreementBranchId:f.branchId},data:{status:"HALTED"}});
  page.once("dialog",d=>d.accept());await page.reload();await expect(page.getByText("An operation needs confirmation",{exact:true})).toBeVisible();
  await page.getByRole("button",{name:"Check saved operation",exact:true}).click();await expect(page.getByRole("dialog",{name:"Fee receipt"})).toBeVisible();
  expect(writes).toBe(1);expect((await db.payment.findUniqueOrThrow({where:{id:fee.id}})).collectedAmount).toBe(250);
@@ -111,13 +113,13 @@ test("Basic desktop and mobile language, keyboard and unsaved-navigation checks"
 });
 test("organization plan transitions choose the full workspace and preserve Basic records",async({page})=>{
  await open(page);const before=await db.student.count({where:{branchId:f.branchId}});
- const {createSaasSubscription}=await import("../factories");
+
  for(const plan of ["STANDARD","PRO"] as const){
-  await db.organizationSubscription.updateMany({where:{currentOrganizationId:f.orgId},data:{currentOrganizationId:null}});await createSaasSubscription({organizationId:f.orgId,plan});
+  await setFixturePlan(plan);
   await page.reload();await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);await expect(page.locator("[data-dashboard-navigation]")).toBeVisible();await shot(page,"full-"+plan.toLowerCase());
   const other=await page.request.get("/api/branches/"+f.otherBranchId+"/access");expect((await other.json()).effectivePlan).toBe(plan);
  }
- await basicPlan();await page.reload();await expect(page.locator("[data-basic-workspace]")).toBeVisible();expect(await db.student.count({where:{branchId:f.branchId}})).toBe(before);
+ await setFixturePlan("BASIC");await page.reload();await expect(page.locator("[data-basic-workspace]")).toBeVisible();expect(await db.student.count({where:{branchId:f.branchId}})).toBe(before);
 });
 
 test("large roster, failed reads, late branch responses and Back preserve scope",async({page})=>{
@@ -141,10 +143,10 @@ test("large roster, failed reads, late branch responses and Back preserve scope"
 test("an access change preserves an unsaved Basic form without replay",async({page})=>{
  await open(page,root+"/students");await page.getByRole("button",{name:"Add student",exact:true}).click();const form=page.getByRole("dialog",{name:"Add a student"});await form.getByLabel("Student name",{exact:true}).fill("Unsaved plan transition");
  let mutations=0;page.on("request",r=>{if(r.url().includes("/api/branches/")&&["POST","PATCH"].includes(r.method()))mutations++;});
- const {createSaasSubscription}=await import("../factories");await db.organizationSubscription.updateMany({where:{currentOrganizationId:f.orgId},data:{currentOrganizationId:null}});await createSaasSubscription({organizationId:f.orgId,plan:"STANDARD"});
+ await setFixturePlan("STANDARD");
  await page.evaluate(()=>window.dispatchEvent(new Event("billing-access-changed")));await expect(page.getByRole("dialog",{name:"Workspace access changed"})).toBeVisible();expect(mutations).toBe(0);
  await expect(form.getByLabel("Student name",{exact:true})).toHaveValue("Unsaved plan transition");page.once("dialog",d=>d.accept());await page.getByRole("button",{name:"Continue to the updated workspace"}).click();await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);
- await basicPlan();await page.evaluate(()=>window.dispatchEvent(new Event("billing-access-changed")));await expect(page.locator("[data-basic-workspace]")).toBeVisible();await page.getByRole("button",{name:"Add student",exact:true}).click();await expect(page.getByRole("dialog",{name:"Add a student"}).getByLabel("Student name",{exact:true})).toHaveValue("Unsaved plan transition");expect(mutations).toBe(0);
+ await setFixturePlan("BASIC");await page.evaluate(()=>window.dispatchEvent(new Event("billing-access-changed")));await expect(page.locator("[data-basic-workspace]")).toBeVisible();await page.getByRole("button",{name:"Add student",exact:true}).click();await expect(page.getByRole("dialog",{name:"Add a student"}).getByLabel("Student name",{exact:true})).toHaveValue("Unsaved plan transition");expect(mutations).toBe(0);
  page.once("dialog",d=>d.accept());await page.keyboard.press("Escape");
 });
 
@@ -163,8 +165,8 @@ test("fresh connected visual review of shared destinations and mobile Basic",asy
 
 test("shared organization entry keeps Basic simple and Standard or Pro analytics intact",async({page})=>{
  await open(page);await page.goto("/org/"+f.orgId);await expect(page.getByText("Choose a branch for students, seats and fees.",{exact:true})).toBeVisible();await expect(page.getByRole("heading",{name:"Organization snapshot",exact:true})).toHaveCount(0);await expect(page.getByRole("button",{name:"Retry analytics",exact:true})).toHaveCount(0);await shot(page,"organization");
- const {createSaasSubscription}=await import("../factories");
- for(const plan of ["STANDARD","PRO"] as const){await db.organizationSubscription.updateMany({where:{currentOrganizationId:f.orgId},data:{currentOrganizationId:null}});await createSaasSubscription({organizationId:f.orgId,plan});await page.reload();await expect(page.getByRole("heading",{name:"Organization snapshot",exact:true})).toBeVisible();await expect(page.getByRole("button",{name:"Retry analytics",exact:true})).toHaveCount(0);await shot(page,"organization-"+plan.toLowerCase());}
+
+ for(const plan of ["STANDARD","PRO"] as const){await setFixturePlan(plan);await page.reload();await expect(page.getByRole("heading",{name:"Organization snapshot",exact:true})).toBeVisible();await expect(page.getByRole("button",{name:"Retry analytics",exact:true})).toHaveCount(0);await shot(page,"organization-"+plan.toLowerCase());}
 });
 
 test("profile edits preserve a linked fee and recover a lost edit response without replay",async({page})=>{

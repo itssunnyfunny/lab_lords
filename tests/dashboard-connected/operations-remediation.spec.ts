@@ -621,7 +621,7 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
     const fixtureBranch = await db.branch.findUniqueOrThrow({ where: { id: fixture.branchId } });
     const originalMember = await db.staff.findUniqueOrThrow({ where: { userId_branchId: { userId: fixture.staffId, branchId: fixture.branchId } }, include: { permissionOverrides: true } });
     const originalShift = await db.shift.findUniqueOrThrow({ where: { id: "dashboard-shift-0" } });
-    const branch = await db.branch.create({ data: { organizationId: fixtureBranch.organizationId, name: "Synthetic partial-move audit", aiEnabled: false } });
+    const branch = await db.branch.create({ data: { organizationId: fixtureBranch.organizationId, name: "Synthetic partial-move audit", aiEnabled: false, billingAgreement: { create: { selectedPlan: "STANDARD" } } } });
     const branchId = branch.id;
     const member = await db.staff.create({ data: { userId: fixture.staffId, branchId, role: originalMember.role,
         permissionOverrides: { create: originalMember.permissionOverrides.map(row => ({ action: row.action, allowed: row.allowed })) } } });

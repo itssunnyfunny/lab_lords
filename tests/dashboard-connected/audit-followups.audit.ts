@@ -41,7 +41,7 @@ for (const language of ["en", "hi", "hinglish"] as const) {
         const original = await db.user.findUniqueOrThrow({ where: { id: fixture.ownerId }, select: { interfaceLanguage: true } });
         expect((await request(page, "/api/users/me", "PATCH", { interfaceLanguage: language })).status).toBe(200);
         const suffix = randomUUID();
-        const branch = await db.branch.create({ data: { organizationId: fixture.orgId, name: `Synthetic audit ${suffix}`, aiEnabled: false } });
+        const branch = await db.branch.create({ data: { organizationId: fixture.orgId, name: `Synthetic audit ${suffix}`, aiEnabled: false, billingAgreement: { create: { selectedPlan: "STANDARD" } } } });
         const shifts = await Promise.all([
             db.shift.create({ data: { branchId: branch.id, name: "Audit Morning", startTime: "08:00", endTime: "12:00", price: 600 } }),
             db.shift.create({ data: { branchId: branch.id, name: "Audit Afternoon", startTime: "12:00", endTime: "16:00", price: 900 } }),

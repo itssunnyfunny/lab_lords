@@ -68,7 +68,7 @@ Object.assign(env, {
     WHATSAPP_OPERATIONS_UI_ENABLED: auditMessaging ? "true" : "false",
     NEXT_PUBLIC_GA_MEASUREMENT_ID: auditGa ? "G-0000000000" : "",
     IMPORT_V2_ENABLED: "false",
-    WORKSPACE_BRANCH_BILLING_V2_ENABLED: auditOnboarding ? "true" : "false",
+
 });
 const port = process.env.DASHBOARD_CONNECTED_PORT || "3117";
 if (!/^\d{4,5}$/.test(port)) throw new Error("Invalid local port");
