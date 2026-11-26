@@ -53,6 +53,16 @@ describe("billing processing reconciliation", () => {
     expect(preferProviderConfirmedOperation(held, resolved)).toBe(resolved);
     expect(preferProviderConfirmedOperation(resolved, held)).toBe(resolved);
   });
+  it("keeps a payment review actionable until the original receipt gains confirmed evidence", () => {
+    const stale = operation("AWAITING_PROVIDER_CONFIRMATION");
+    const held = { ...operation("FAILED"), canResumePaymentRecovery: false, requiresPaymentRecoveryReview: true as const,
+      failureCategory: "MANUAL_REVIEW_REQUIRED", updatedAt: "2026-08-07T11:00:00.000Z" };
+    const resolved = { ...operation("APPLIED"), updatedAt: "2026-08-07T12:00:00.000Z" };
+    expect(getBillingProcessingCopy(held, true, true).title).toBe("Payment confirmation requires review");
+    expect(preferProviderConfirmedOperation(held, stale)).toBe(held);
+    expect(preferProviderConfirmedOperation(held, resolved)).toBe(resolved);
+    expect(preferProviderConfirmedOperation(resolved, held)).toBe(resolved);
+  });
   it("keeps provider-confirmed success when a stale failure arrives later", () => {
     const applied = operation("APPLIED");
     const failed = operation("FAILED");

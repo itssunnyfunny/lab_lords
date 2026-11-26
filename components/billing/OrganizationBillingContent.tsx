@@ -587,7 +587,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                 setBillingOperationBusy(false);
                 return;
             }
-            if (experience.paymentAction === "WAIT_FOR_CONFIRMATION" && operationId) {
+            if ((experience.paymentAction === "WAIT_FOR_CONFIRMATION" || experience.paymentAction === "CHECK_PAYMENT_STATUS") && operationId) {
                 router.push(processingDestination(accountBillingProcessingHref(orgId, operationId)));
                 return;
             }
@@ -672,7 +672,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 
     return (
         <>
-            <RazorpayCheckoutScript
+            {billingOverview && billingOverview.experience.paymentAction !== "CHECK_PAYMENT_STATUS" && <RazorpayCheckoutScript
                 onReady={() => setCheckoutScriptReady(true)}
                 onError={() => {
                     setCheckoutScriptReady(false);
@@ -681,7 +681,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                         message: "Razorpay Checkout could not be loaded. Check your connection and refresh the page.",
                     });
                 }}
-            />
+            />}
             <SettingsWorkspace
                 title={t("Billing and plans")}
                 subtitle={branchName ?? t.owned("Subscription payments and access for your organization.")}
@@ -1096,6 +1096,7 @@ function formatBillingAction(action: BillingOverview["experience"]["paymentActio
         CHOOSE_PLAN: "Choose plan",
         CONTINUE_CHECKOUT: "Continue authorization",
         RESUME_PAYMENT_RECOVERY: "Resume payment recovery",
+        CHECK_PAYMENT_STATUS: "Check payment status",
         WAIT_FOR_CONFIRMATION: "View confirmation",
         RETRY_AUTHORIZATION: "Retry authorization",
         RETRY_BILLING_CHANGE: "Retry billing change",
